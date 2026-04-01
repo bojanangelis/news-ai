@@ -1,0 +1,492 @@
+// ─── Prisma Schema — NewsPlus ──────────────────────────────────────────────────
+// Single source of truth for all database models.
+// Run: pnpm --filter @repo/database db:generate
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  EDITOR
+  WRITER
+  ANALYST
+  READER
+}
+
+enum ArticleStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ArticleSectionType {
+  PARAGRAPH
+  HEADING
+  QUOTE
+  IMAGE
+  EMBED
+  CODE
+  DIVIDER
+  LIST
+}
+
+enum MediaAssetType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum HomepageSectionType {
+  HERO
+  FEATURED_GRID
+  CATEGORY_ROW
+  TRENDING
+  EDITORS_PICK
+}
+
+enum NotificationType {
+  BREAKING_NEWS
+  NEW_ARTICLE_FROM_FOLLOWED_TOPIC
+  NEW_ARTICLE_FROM_FOLLOWED_AUTHOR
+  SYSTEM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+enum ScrapingSourceStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  PAUSED
+}
+
+enum ScrapingLogStatus {
+  SUCCESS
+  PARTIAL
+  ERROR
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  bio          String?
+  role         UserRole @default(READER)
+  isActive     Boolean  @default(true)
+  emailVerifiedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  authorProfile       Author?
+  bookmarks           Bookmark[]
+  topicFollows        TopicFollow[]
+  articleViews        ArticleView[]
+  notifications       Notification[]
+  premiumSubscription PremiumSubscription?
+  refreshTokens       RefreshToken[]
+  auditLogs           AdminAuditLog[]
+  scrapingSources     ScrapingSource[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  revokedAt   DateTime?
+  userAgent   String?
+  ipAddress   String?
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ─── Author ───────────────────────────────────────────────────────────────────
+
+model Author {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug        String    @unique
+  displayName String
+  bio         String?
+  avatarUrl   String?
+  twitterUrl  String?
+  linkedInUrl String?
+  websiteUrl  String?
+  isVerified  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  articles    Article[]
+
+  @@index([slug])
+}
+
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  color       String?   // hex color for UI accents
+  iconUrl     String?
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  articles         Article[]
+  homepageSections HomepageSection[]
+  scrapingSources  ScrapingSource[]
+
+  @@index([slug])
+}
+
+// ─── Topic ────────────────────────────────────────────────────────────────────
+
+model Topic {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  iconUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  articleTopics ArticleTopic[]
+  topicFollows  TopicFollow[]
+
+  @@index([slug])
+}
+
+// ─── Tag ──────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  createdAt DateTime     @default(now())
+
+  articleTags ArticleTag[]
+
+  @@index([slug])
+}
+
+// ─── Article ──────────────────────────────────────────────────────────────────
+
+model Article {
+  id               String        @id @default(cuid())
+  title            String
+  slug             String        @unique
+  excerpt          String
+  status           ArticleStatus @default(DRAFT)
+  isPremium        Boolean       @default(false)
+  isBreaking       Boolean       @default(false)
+  readTimeMinutes  Int           @default(0)
+  viewCount        Int           @default(0)
+  bookmarkCount    Int           @default(0)
+  popularityScore  Float         @default(0) // for trending (updated by background job)
+
+  // Foreign keys
+  authorId         String
+  author           Author        @relation(fields: [authorId], references: [id])
+  categoryId       String
+  category         Category      @relation(fields: [categoryId], references: [id])
+  coverImageId     String?
+  coverImage       MediaAsset?   @relation("ArticleCover", fields: [coverImageId], references: [id])
+
+  // Scraping origin (used for deduplication of scraped articles)
+  sourceUrl        String?
+  // Cover image URL scraped from RSS feed (og:image / media:thumbnail / enclosure)
+  ogImageUrl       String?
+
+  // Timestamps
+  publishedAt      DateTime?
+  scheduledAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Full-text search vector (populated by trigger)
+  searchVector     Unsupported("tsvector")?
+
+  // Relations
+  sections         ArticleSection[]
+  articleTopics    ArticleTopic[]
+  articleTags      ArticleTag[]
+  bookmarks        Bookmark[]
+  articleViews     ArticleView[]
+  homepageItems    HomepageSectionItem[]
+
+  @@index([slug])
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([categoryId, status, publishedAt(sort: Desc)])
+  @@index([authorId, status])
+  @@index([isPremium, status])
+  @@index([popularityScore(sort: Desc)])
+  // Full-text index handled via raw migration
+}
+
+// ─── ArticleSection (rich content blocks) ────────────────────────────────────
+
+model ArticleSection {
+  id            String             @id @default(cuid())
+  articleId     String
+  article       Article            @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  type          ArticleSectionType
+  order         Int
+  content       String?            // text content
+  level         Int?               // for HEADING (1-6)
+  url           String?            // for IMAGE / EMBED
+  caption       String?            // for IMAGE
+  attribution   String?            // for QUOTE
+  language      String?            // for CODE
+  mediaAssetId  String?
+  mediaAsset    MediaAsset?        @relation(fields: [mediaAssetId], references: [id])
+  metadata      Json?              // extensible for future block types
+
+  @@index([articleId, order])
+}
+
+// ─── Join tables ──────────────────────────────────────────────────────────────
+
+model ArticleTopic {
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  topicId   String
+  topic     Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, topicId])
+}
+
+model ArticleTag {
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+}
+
+// ─── Bookmark ─────────────────────────────────────────────────────────────────
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ─── TopicFollow ──────────────────────────────────────────────────────────────
+
+model TopicFollow {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId    String
+  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  followedAt DateTime @default(now())
+
+  @@id([userId, topicId])
+  @@index([userId])
+}
+
+// ─── ArticleView (analytics events) ──────────────────────────────────────────
+
+model ArticleView {
+  id          String   @id @default(cuid())
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId   String?  // anonymous tracking
+  ipHash      String?  // hashed for privacy
+  userAgent   String?
+  referrer    String?
+  readPercent Int?     // 0-100, how far they read
+  timeOnPage  Int?     // seconds
+  viewedAt    DateTime @default(now())
+
+  @@index([articleId, viewedAt(sort: Desc)])
+  @@index([userId])
+  @@index([viewedAt(sort: Desc)])
+}
+
+// ─── MediaAsset ───────────────────────────────────────────────────────────────
+
+model MediaAsset {
+  id           String         @id @default(cuid())
+  url          String
+  thumbnailUrl String?
+  altText      String?
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  type         MediaAssetType @default(IMAGE)
+  s3Key        String         @unique
+  uploadedById String?
+  createdAt    DateTime       @default(now())
+
+  articleCovers  Article[]        @relation("ArticleCover")
+  articleSections ArticleSection[]
+
+  @@index([type, createdAt(sort: Desc)])
+}
+
+// ─── PremiumSubscription ──────────────────────────────────────────────────────
+
+model PremiumSubscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelledAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([status])
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?            // articleId, topicId, etc.
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+}
+
+// ─── HomepageSection ──────────────────────────────────────────────────────────
+
+model HomepageSection {
+  id           String              @id @default(cuid())
+  type         HomepageSectionType
+  title        String?
+  order        Int
+  isActive     Boolean             @default(true)
+  categoryId   String?
+  category     Category?           @relation(fields: [categoryId], references: [id])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  items        HomepageSectionItem[]
+
+  @@index([order, isActive])
+}
+
+model HomepageSectionItem {
+  id                String          @id @default(cuid())
+  homepageSectionId String
+  homepageSection   HomepageSection @relation(fields: [homepageSectionId], references: [id], onDelete: Cascade)
+  articleId         String
+  article           Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  order             Int
+
+  @@unique([homepageSectionId, articleId])
+  @@index([homepageSectionId, order])
+}
+
+// ─── ScrapingSource ───────────────────────────────────────────────────────────
+
+model ScrapingSource {
+  id                    String               @id @default(cuid())
+  name                  String
+  url                   String               @unique
+  isActive              Boolean              @default(true)
+  scrapeIntervalMinutes Int                  @default(60)
+  lastScrapedAt         DateTime?
+  status                ScrapingSourceStatus @default(PENDING)
+  errorMessage          String?
+  notes                 String?
+  defaultCategoryId     String?
+  defaultCategory       Category?            @relation(fields: [defaultCategoryId], references: [id])
+  createdById           String
+  createdBy             User                 @relation(fields: [createdById], references: [id])
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  logs                  ScrapingLog[]
+
+  @@index([isActive, status])
+  @@index([createdById])
+}
+
+model ScrapingLog {
+  id             String            @id @default(cuid())
+  sourceId       String
+  source         ScrapingSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status         ScrapingLogStatus
+  articlesFound  Int               @default(0)
+  articlesSaved  Int               @default(0)
+  durationMs     Int               @default(0)
+  errorMessage   String?
+  details        String?           // raw summary / first N chars of response for debugging
+  createdAt      DateTime          @default(now())
+
+  @@index([sourceId, createdAt(sort: Desc)])
+}
+
+// ─── AdminAuditLog ────────────────────────────────────────────────────────────
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // e.g. "article.publish", "user.ban", "homepage.reorder"
+  entityType String   // e.g. "Article", "User", "HomepageSection"
+  entityId   String?
+  before     Json?    // snapshot before change
+  after      Json?    // snapshot after change
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([createdAt(sort: Desc)])
+}

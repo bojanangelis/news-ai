@@ -3,11 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./*": "./src/*.tsx"
+    "./button": "./src/button.tsx",
+    "./card": "./src/card.tsx",
+    "./badge": "./src/badge.tsx",
+    "./skeleton": "./src/skeleton.tsx",
+    "./input": "./src/input.tsx",
+    "./avatar": "./src/avatar.tsx",
+    "./code": "./src/code.tsx"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
-    "generate:component": "turbo gen react-component",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
@@ -19,7 +24,7 @@
     "eslint": "^9.39.1",
     "typescript": "5.9.2"
   },
-  "dependencies": {
+  "peerDependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   }

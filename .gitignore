@@ -36,3 +36,15 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+*.key
+
+# Prisma
+packages/database/src/generated/
+
+# Docker
+docker/postgres/data/
+docker/redis/data/
+
+
+#pnpm-store
+.pnpm-store 

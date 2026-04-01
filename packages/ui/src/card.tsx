@@ -1,27 +1,46 @@
-import { type JSX } from "react";
+import * as React from "react";
 
-export function Card({
-  className,
-  title,
-  children,
-  href,
-}: {
+interface CardProps {
   className?: string;
-  title: string;
   children: React.ReactNode;
-  href: string;
-}): JSX.Element {
+}
+
+export function Card({ className = "", children }: CardProps) {
   return (
-    <a
-      className={className}
-      href={`${href}?utm_source=create-turbo&utm_medium=basic&utm_campaign=create-turbo"`}
-      rel="noopener noreferrer"
-      target="_blank"
+    <div
+      className={[
+        "rounded-2xl bg-white dark:bg-neutral-900",
+        "shadow-sm border border-neutral-100 dark:border-neutral-800",
+        "transition-shadow duration-200 hover:shadow-md",
+        className,
+      ].join(" ")}
     >
-      <h2>
-        {title} <span>-&gt;</span>
-      </h2>
-      <p>{children}</p>
-    </a>
+      {children}
+    </div>
+  );
+}
+
+export function CardHeader({ className = "", children }: CardProps) {
+  return (
+    <div className={["px-5 py-4 border-b border-neutral-100 dark:border-neutral-800", className].join(" ")}>
+      {children}
+    </div>
+  );
+}
+
+export function CardContent({ className = "", children }: CardProps) {
+  return <div className={["px-5 py-4", className].join(" ")}>{children}</div>;
+}
+
+export function CardFooter({ className = "", children }: CardProps) {
+  return (
+    <div
+      className={[
+        "px-5 py-4 border-t border-neutral-100 dark:border-neutral-800",
+        className,
+      ].join(" ")}
+    >
+      {children}
+    </div>
   );
 }

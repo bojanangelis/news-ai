@@ -1,0 +1,39 @@
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { HomepageService } from './homepage.service';
+import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+@ApiTags('homepage')
+@Controller({ path: 'homepage', version: '1' })
+export class HomepageController {
+  constructor(private homepageService: HomepageService) {}
+
+  @Public()
+  @Get()
+  getSections() {
+    return this.homepageService.getSections();
+  }
+
+  @Roles('EDITOR', 'SUPER_ADMIN')
+  @Post('reorder')
+  reorder(@Body() body: { order: { id: string; order: number }[] }) {
+    return this.homepageService.reorderSections(body.order);
+  }
+
+  @Roles('EDITOR', 'SUPER_ADMIN')
+  @Post('sections')
+  upsertSection(
+    @Body() body: {
+      id?: string;
+      type: string;
+      title?: string;
+      order: number;
+      isActive?: boolean;
+      categoryId?: string;
+      articleIds: string[];
+    },
+  ) {
+    return this.homepageService.upsertSection(body);
+  }
+}

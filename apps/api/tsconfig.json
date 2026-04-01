@@ -1,8 +1,10 @@
 {
-  "extends": "@repo/typescript-config/nestjs",
+  "extends": "../../packages/typescript-config/nestjs.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "target": "ES2022",
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*.ts"
