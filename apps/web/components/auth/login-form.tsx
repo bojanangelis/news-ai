@@ -1,32 +1,36 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/client-api";
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { authApi } from "@/lib/client-api"
 
 interface Props {
-  redirectTo?: string;
+  redirectTo?: string
 }
 
 export function LoginForm({ redirectTo = "/" }: Props) {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+    e.preventDefault()
+    setError("")
+    setLoading(true)
     try {
-      await authApi.login({ email, password });
-      router.push(redirectTo);
-      router.refresh();
+      await authApi.login({ email, password })
+      router.push(redirectTo)
+      router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Check your credentials.");
+      setError(
+        err instanceof Error ?
+          err.message
+        : "Login failed. Check your credentials.",
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -39,10 +43,12 @@ export function LoginForm({ redirectTo = "/" }: Props) {
       )}
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-1.5">Email</label>
+        <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+          Email
+        </label>
         <input
-          id="email"
           type="email"
+          id="email"
           autoComplete="email"
           required
           value={email}
@@ -53,7 +59,9 @@ export function LoginForm({ redirectTo = "/" }: Props) {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium mb-1.5">Password</label>
+        <label htmlFor="password" className="block text-sm font-medium mb-1.5">
+          Password
+        </label>
         <input
           id="password"
           type="password"
@@ -73,12 +81,23 @@ export function LoginForm({ redirectTo = "/" }: Props) {
       >
         {loading && (
           <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
           </svg>
         )}
         {loading ? "Signing in..." : "Sign in"}
       </button>
     </form>
-  );
+  )
 }
