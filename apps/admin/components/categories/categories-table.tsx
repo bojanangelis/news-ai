@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { adminClientFetch } from "@/lib/client-api";
+import { useToast } from "@/components/ui/toast";
 
 interface CategoryRow {
   id: string;
@@ -22,6 +23,7 @@ export function CategoriesTable({ categories: initial }: Props) {
   const [form, setForm] = useState({ name: "", slug: "", description: "", color: "#e5195e" });
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { toast, confirm } = useToast();
 
   async function handleCreate() {
     setSaving(true);
@@ -33,20 +35,28 @@ export function CategoriesTable({ categories: initial }: Props) {
       setCategories((prev) => [...prev, res.data]);
       setShowNew(false);
       setForm({ name: "", slug: "", description: "", color: "#e5195e" });
+      toast.success("Category created");
     } catch {
-      // TODO: toast
+      toast.error("Failed to create category");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this category?")) return;
+    const ok = await confirm({
+      title: "Delete this category?",
+      description: "Articles in this category will become uncategorized.",
+      confirmLabel: "Delete category",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await adminClientFetch(`/categories/${id}`, { method: "DELETE" });
       setCategories((prev) => prev.filter((c) => c.id !== id));
+      toast.success("Category deleted");
     } catch {
-      // TODO: toast
+      toast.error("Failed to delete category");
     }
   }
 

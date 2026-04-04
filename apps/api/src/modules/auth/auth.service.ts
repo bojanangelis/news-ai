@@ -58,13 +58,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: stored.userId } });
+
+    // Banned / deactivated users cannot refresh their session
+    if (!user.isActive) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException('Account is disabled');
+    }
+
     // Rotate: revoke old, issue new
     await this.prisma.refreshToken.update({
       where: { id: stored.id },
       data: { revokedAt: new Date() },
     });
 
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: stored.userId } });
     const { accessToken, refreshToken } = await this.generateTokens(user.id, user.email, user.role);
     await this.storeRefreshToken(user.id, refreshToken);
 

@@ -80,6 +80,38 @@ enum ScrapingLogStatus {
   ERROR
 }
 
+enum StoryStatus {
+  ACTIVE
+  MERGED
+  ARCHIVED
+}
+
+enum ArticleRole {
+  CANONICAL
+  SUPPORTING
+  RELATED
+}
+
+enum MatchMethod {
+  EXACT_URL
+  TITLE_FINGERPRINT
+  ENTITY_OVERLAP
+  MANUAL
+}
+
+enum EntityType {
+  PERSON
+  ORGANIZATION
+  LOCATION
+  EVENT
+}
+
+enum DedupeOutcome {
+  JOINED_EXISTING
+  CREATED_NEW
+  EXACT_DUPLICATE_SKIPPED
+}
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -166,6 +198,7 @@ model Category {
   articles         Article[]
   homepageSections HomepageSection[]
   scrapingSources  ScrapingSource[]
+  stories          Story[]
 
   @@index([slug])
 }
@@ -228,6 +261,8 @@ model Article {
   sourceUrl        String?
   // Cover image URL scraped from RSS feed (og:image / media:thumbnail / enclosure)
   ogImageUrl       String?
+  // Normalized title fingerprint for story clustering (word-bag, sorted, pipe-delimited)
+  titleFingerprint String?
 
   // Timestamps
   publishedAt      DateTime?
@@ -245,6 +280,8 @@ model Article {
   bookmarks        Bookmark[]
   articleViews     ArticleView[]
   homepageItems    HomepageSectionItem[]
+  storyArticles    StoryArticle[]
+  articleEntities  ArticleEntity[]
 
   @@index([slug])
   @@index([status, publishedAt(sort: Desc)])
@@ -439,10 +476,16 @@ model ScrapingSource {
   url                   String               @unique
   isActive              Boolean              @default(true)
   scrapeIntervalMinutes Int                  @default(60)
+  maxPagesPerRun        Int                  @default(1)
+  maxArticlesPerRun     Int                  @default(50)
   lastScrapedAt         DateTime?
+  lastSuccessAt         DateTime?
   status                ScrapingSourceStatus @default(PENDING)
   errorMessage          String?
   notes                 String?
+  consecutiveErrors     Int                  @default(0)
+  totalArticlesSaved    Int                  @default(0)
+  healthScore           Int?
   defaultCategoryId     String?
   defaultCategory       Category?            @relation(fields: [defaultCategoryId], references: [id])
   createdById           String
@@ -457,18 +500,115 @@ model ScrapingSource {
 }
 
 model ScrapingLog {
-  id             String            @id @default(cuid())
-  sourceId       String
-  source         ScrapingSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  status         ScrapingLogStatus
-  articlesFound  Int               @default(0)
-  articlesSaved  Int               @default(0)
-  durationMs     Int               @default(0)
-  errorMessage   String?
-  details        String?           // raw summary / first N chars of response for debugging
-  createdAt      DateTime          @default(now())
+  id               String            @id @default(cuid())
+  sourceId         String
+  source           ScrapingSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status           ScrapingLogStatus
+  articlesFound    Int               @default(0)
+  articlesSaved    Int               @default(0)
+  articlesSkipped  Int               @default(0)
+  articlesFailed   Int               @default(0)
+  pagesVisited     Int               @default(1)
+  feedUrl          String?
+  durationMs       Int               @default(0)
+  errorMessage     String?
+  details          String?
+  structuredData   Json?
+  createdAt        DateTime          @default(now())
 
   @@index([sourceId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+// ─── Story (canonical story cluster) ─────────────────────────────────────────
+
+model Story {
+  id               String      @id @default(cuid())
+  title            String
+  summary          String?
+  imageUrl         String?
+  categoryId       String?
+  category         Category?   @relation(fields: [categoryId], references: [id])
+  firstPublishedAt DateTime
+  lastPublishedAt  DateTime
+  sourceCount      Int         @default(1)
+  articleCount     Int         @default(1)
+  status           StoryStatus @default(ACTIVE)
+  isDeveloping     Boolean     @default(false)
+  clusterConfidence Float      @default(1.0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  storyArticles    StoryArticle[]
+
+  @@index([lastPublishedAt])
+  @@index([categoryId, status])
+  @@index([status, lastPublishedAt(sort: Desc)])
+  @@map("stories")
+}
+
+// ─── StoryArticle (join: story ↔ article) ────────────────────────────────────
+
+model StoryArticle {
+  id          String      @id @default(cuid())
+  storyId     String
+  story       Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  articleId   String
+  article     Article     @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  role        ArticleRole @default(SUPPORTING)
+  rankScore   Float       @default(0.5)
+  matchMethod MatchMethod
+  matchScore  Float
+  addedAt     DateTime    @default(now())
+
+  @@unique([storyId, articleId])
+  @@index([storyId, role])
+  @@index([articleId])
+  @@map("story_articles")
+}
+
+// ─── Entity ───────────────────────────────────────────────────────────────────
+
+model Entity {
+  id             String    @id @default(cuid())
+  name           String
+  normalizedName String
+  type           EntityType
+
+  articleEntities ArticleEntity[]
+
+  @@unique([normalizedName, type])
+  @@map("entities")
+}
+
+// ─── ArticleEntity (join: article ↔ entity) ──────────────────────────────────
+
+model ArticleEntity {
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  salience  Float   @default(1.0)
+
+  @@id([articleId, entityId])
+  @@map("article_entities")
+}
+
+// ─── DedupeDecision (audit log) ───────────────────────────────────────────────
+
+model DedupeDecision {
+  id        String        @id @default(cuid())
+  articleId String
+  storyId   String?
+  decision  DedupeOutcome
+  method    MatchMethod
+  score     Float
+  metadata  Json?
+  createdAt DateTime      @default(now())
+
+  @@index([articleId])
+  @@index([createdAt(sort: Desc)])
+  @@map("dedupe_decisions")
 }
 
 // ─── AdminAuditLog ────────────────────────────────────────────────────────────

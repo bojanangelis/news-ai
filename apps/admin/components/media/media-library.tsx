@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { mediaAdminApi } from "@/lib/client-api";
+import { useToast } from "@/components/ui/toast";
 import type { MediaAsset } from "@repo/types";
 
 export function MediaLibrary() {
@@ -10,6 +11,7 @@ export function MediaLibrary() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { toast, confirm } = useToast();
 
   async function loadAssets() {
     try {
@@ -31,6 +33,9 @@ export function MediaLibrary() {
       fd.append("file", file);
       await mediaAdminApi.upload(fd);
       await loadAssets();
+      toast.success("Image uploaded");
+    } catch {
+      toast.error("Upload failed");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -38,9 +43,20 @@ export function MediaLibrary() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this asset?")) return;
-    await mediaAdminApi.delete(id);
-    setAssets((a) => a.filter((asset) => asset.id !== id));
+    const ok = await confirm({
+      title: "Delete this asset?",
+      description: "The image will be permanently removed from storage.",
+      confirmLabel: "Delete image",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await mediaAdminApi.delete(id);
+      setAssets((a) => a.filter((asset) => asset.id !== id));
+      toast.success("Asset deleted");
+    } catch {
+      toast.error("Failed to delete asset");
+    }
   }
 
   return (

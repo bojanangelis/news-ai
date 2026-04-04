@@ -7,11 +7,33 @@ export const metadata: Metadata = { title: "Homepage Editor" };
 
 export const dynamic = "force-dynamic";
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  color?: string | null;
+}
+
+interface AdminSection {
+  id: string;
+  type: HomepageSection["type"];
+  title: string | null;
+  order: number;
+  isActive: boolean;
+  categoryId: string | null;
+  categorySlug: string | null;
+}
+
 export default async function HomepagePage() {
-  let sections: HomepageSection[] = [];
+  let sections: AdminSection[] = [];
+  let categories: Category[] = [];
   try {
-    const res = await adminFetch<{ data: HomepageSection[] }>("/homepage/sections");
-    sections = res.data;
+    const [sectionsRes, categoriesRes] = await Promise.all([
+      adminFetch<{ data: AdminSection[] }>("/homepage/sections"),
+      adminFetch<{ data: Category[] }>("/categories"),
+    ]);
+    sections = sectionsRes.data;
+    categories = categoriesRes.data;
   } catch {
     // handled below
   }
@@ -25,7 +47,7 @@ export default async function HomepagePage() {
         </p>
       </div>
 
-      <HomepageEditor sections={sections} />
+      <HomepageEditor sections={sections as any} categories={categories} />
     </div>
   );
 }

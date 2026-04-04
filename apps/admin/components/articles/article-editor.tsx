@@ -24,6 +24,7 @@ export function ArticleEditor({ mode, article, categories, authors }: Props) {
     categoryId: article?.category.id ?? "",
     authorId: article?.author.id ?? "",
     isPremium: article?.isPremium ?? false,
+    isBreaking: (article as unknown as { isBreaking?: boolean })?.isBreaking ?? false,
     status: "DRAFT",
     sections: article?.sections ?? [],
   });
@@ -132,7 +133,7 @@ export function ArticleEditor({ mode, article, categories, authors }: Props) {
           </div>
 
           {/* Premium toggle */}
-          <div className="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-5">
+          <div className="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-5 space-y-4">
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-sm font-medium">Premium Article</span>
               <button
@@ -149,6 +150,28 @@ export function ArticleEditor({ mode, article, categories, authors }: Props) {
                 ].join(" ")} />
               </button>
             </label>
+
+            <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium">Breaking News</span>
+                  <p className="text-xs text-neutral-400 mt-0.5">Shows red banner on every page</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, isBreaking: !f.isBreaking }))}
+                  className={[
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    form.isBreaking ? "bg-red-500" : "bg-neutral-200 dark:bg-neutral-700",
+                  ].join(" ")}
+                >
+                  <span className={[
+                    "inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    form.isBreaking ? "translate-x-6" : "translate-x-1",
+                  ].join(" ")} />
+                </button>
+              </label>
+            </div>
           </div>
         </div>
       </div>

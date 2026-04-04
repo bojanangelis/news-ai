@@ -13,6 +13,7 @@ import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
 const REFRESH_COOKIE = 'refresh_token';
@@ -29,9 +30,10 @@ const COOKIE_OPTS = {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Public()
+  // Registration is restricted to SUPER_ADMIN — public self-signup is disabled.
+  @Roles('SUPER_ADMIN')
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({ summary: 'Create a new user account (SUPER_ADMIN only)' })
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(dto);
     this.setTokenCookies(res, result.accessToken, result.refreshToken);

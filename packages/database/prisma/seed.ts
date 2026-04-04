@@ -66,13 +66,22 @@ async function main() {
     }
   }
 
+  // Step 1b: Rename "Регион" → "Балкан" if it still exists under the old slug
+  const oldRegion = await prisma.category.findUnique({ where: { slug: 'region' } });
+  if (oldRegion) {
+    await prisma.category.update({
+      where: { slug: 'region' },
+      data: { name: 'Балкан', slug: 'balkan', color: '#0891b2', order: 6 },
+    });
+  }
+
   // Step 2: Upsert new Macedonian categories that don't map to English ones
   const newCategoryDefs = [
     { name: "Македонија", slug: "makedonija", color: "#dc2626", order: 1 },
     { name: "Скопје",     slug: "skopje",     color: "#ef4444", order: 2 },
     { name: "Политика",   slug: "politika",   color: "#7c3aed", order: 4 },
     { name: "Економија",  slug: "ekonomija",  color: "#059669", order: 5 },
-    { name: "Регион",     slug: "region",     color: "#0891b2", order: 6 },
+    { name: "Балкан",     slug: "balkan",     color: "#0891b2", order: 6  }, // renamed from "Регион"/"region"
     { name: "Култура",    slug: "kultura",    color: "#ca8a04", order: 13 },
   ];
 
@@ -105,34 +114,46 @@ async function main() {
     });
   }
 
-  // ─── Author (used as default for scraped articles) ────────────────────────
-  const writerHash = hashSync("Writer123!", 12);
-  const writer = await prisma.user.upsert({
-    where: { email: "writer@newsplus.dev" },
-    update: { passwordHash: writerHash },
-    create: {
-      email: "writer@newsplus.dev",
-      name: "Редакција",
-      passwordHash: writerHash,
-      role: UserRole.WRITER,
-    },
-  });
 
-  await prisma.author.upsert({
-    where: { userId: writer.id },
-    update: { displayName: "Редакција" },
-    create: {
-      userId: writer.id,
-      slug: "redakcija",
-      displayName: "Редакција",
-      bio: "Редакциски тим на NewsPlus.",
-      isVerified: true,
-    },
-  });
+  // ─── Homepage Sections ────────────────────────────────────────────────────
+  // Full time.mk-style layout — delete existing and recreate for a clean slate.
+  await prisma.homepageSection.deleteMany({});
+
+  const catMap: Record<string, string> = {};
+  const allCats = await prisma.category.findMany({ select: { id: true, slug: true } });
+  for (const c of allCats) catMap[c.slug] = c.id;
+
+  const sectionDefs: { type: string; title: string; order: number; slug?: string }[] = [
+    { type: 'HERO',          title: 'Најнови вести',        order: 0  },
+    { type: 'CATEGORY_ROW',  title: 'Македонија',            order: 1,  slug: 'makedonija' },
+    { type: 'CATEGORY_ROW',  title: 'Економија',             order: 2,  slug: 'ekonomija'  },
+    { type: 'CATEGORY_ROW',  title: 'Балкан',                order: 3,  slug: 'balkan'     },
+    { type: 'CATEGORY_ROW',  title: 'Свет',                  order: 4,  slug: 'svet'       },
+    { type: 'CATEGORY_ROW',  title: 'Политика',              order: 5,  slug: 'politika'   },
+    { type: 'CATEGORY_ROW',  title: 'Наука & Технологија',   order: 6,  slug: 'tehnologija'},
+    { type: 'CATEGORY_ROW',  title: 'Спорт',                 order: 7,  slug: 'sport'      },
+    { type: 'CATEGORY_ROW',  title: 'Сцена & Забава',        order: 8,  slug: 'zabava'     },
+    { type: 'CATEGORY_ROW',  title: 'Култура',               order: 9,  slug: 'kultura'    },
+    { type: 'TRENDING',      title: 'Популарно',             order: 10 },
+  ];
+
+  for (const { type, title, order, slug } of sectionDefs) {
+    const categoryId = slug ? catMap[slug] : undefined;
+    await prisma.homepageSection.create({
+      data: {
+        type: type as any,
+        title,
+        order,
+        isActive: true,
+        ...(categoryId ? { categoryId } : {}),
+      },
+    });
+  }
 
   const totalCats = renames.length + categories.length;
-  console.log(`Seeded: admin=${admin.email}, writer=${writer.email}`);
+  console.log(`Seeded: admin=${admin.email}`);
   console.log(`Seeded: ${totalCats} categories (${renames.length} renamed + ${categories.length} new), ${topicDefs.length} topics`);
+  console.log(`Seeded: ${sectionDefs.length} homepage sections (time.mk style)`);
 }
 
 main()

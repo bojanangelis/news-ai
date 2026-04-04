@@ -5,9 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 export class BookmarksService {
   constructor(private prisma: PrismaService) {}
 
-  findAll(userId: string, page = 1, limit = 20) {
+  async findAll(userId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
-    return this.prisma.bookmark.findMany({
+    const bookmarks = await this.prisma.bookmark.findMany({
       where: { userId },
       skip,
       take: limit,
@@ -18,6 +18,12 @@ export class BookmarksService {
         },
       },
     });
+    return bookmarks.map((b) => ({
+      ...b,
+      article: b.article
+        ? { ...b.article, author: { ...b.article.author, name: b.article.author.displayName } }
+        : b.article,
+    }));
   }
 
   async create(userId: string, articleId: string) {

@@ -114,6 +114,25 @@ export default async function ArticlePage({ params }: Props) {
         ) : (
           <ArticleBody sections={article.sections} />
         )}
+
+        {/* Tags */}
+        {(() => {
+          const tags = (article as unknown as { articleTags?: { tag: { id: string; name: string; slug: string } }[] }).articleTags;
+          if (!tags?.length) return null;
+          return (
+            <div className="mt-8 flex flex-wrap gap-2">
+              {tags.map(({ tag }) => (
+                <a
+                  key={tag.id}
+                  href={`/search?q=${encodeURIComponent(tag.name)}`}
+                  className="inline-flex items-center rounded-full border border-neutral-200 dark:border-neutral-700 px-3 py-1 text-xs text-neutral-600 dark:text-neutral-400 hover:border-accent hover:text-accent transition-colors"
+                >
+                  #{tag.name}
+                </a>
+              ))}
+            </div>
+          );
+        })()}
       </article>
 
       {/* Related articles */}

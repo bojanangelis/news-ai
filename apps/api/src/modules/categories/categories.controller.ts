@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { Public } from '../../common/decorators/public.decorator';
@@ -31,5 +31,12 @@ export class CategoriesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: Partial<{ name: string; description: string; color: string; order: number; isActive: boolean }>) {
     return this.categoriesService.update(id, body);
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id') id: string) {
+    return this.categoriesService.remove(id);
   }
 }

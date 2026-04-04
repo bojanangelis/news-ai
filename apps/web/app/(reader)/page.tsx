@@ -4,6 +4,7 @@ import { FeaturedGrid } from "@/components/feed/featured-grid";
 import { CategoryRow } from "@/components/feed/category-row";
 import { TrendingSection } from "@/components/feed/trending-section";
 import { ArticleCard } from "@/components/article/article-card";
+import { WeatherAirWidget } from "@/components/widgets/weather-air-widget";
 import { getHomepageSections, getArticles } from "@/lib/api";
 import type { ArticleSummary } from "@repo/types";
 
@@ -43,24 +44,35 @@ export default async function HomePage() {
       ? (latestRes.value.data?.data as ArticleSummary[]) ?? []
       : [];
 
-  const hasSections = sections.length > 0;
+  const populatedSections = sections.filter((s) => s.items.length > 0);
+  const hasSections = populatedSections.length > 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-14">
       {hasSections ? (
-        sections.map((section) => {
-          switch (section.type) {
-            case "HERO":
-              return <HeroSection key={section.id} section={section} />;
-            case "FEATURED_GRID":
-              return <FeaturedGrid key={section.id} section={section} />;
-            case "CATEGORY_ROW":
-              return <CategoryRow key={section.id} section={section} />;
-            case "TRENDING":
-              return <TrendingSection key={section.id} section={section} />;
-            default:
-              return null;
-          }
+        populatedSections.map((section, idx) => {
+          const el = (() => {
+            switch (section.type) {
+              case "HERO":
+                return <HeroSection key={section.id} section={section} />;
+              case "FEATURED_GRID":
+                return <FeaturedGrid key={section.id} section={section} />;
+              case "CATEGORY_ROW":
+                return <CategoryRow key={section.id} section={section} />;
+              case "TRENDING":
+                return <TrendingSection key={section.id} section={section} />;
+              default:
+                return null;
+            }
+          })();
+
+          return (
+            <div key={section.id}>
+              {el}
+              {/* Weather + air quality widget after the hero section */}
+              {idx === 0 && <div className="mt-6"><WeatherAirWidget /></div>}
+            </div>
+          );
         })
       ) : (
         <div>

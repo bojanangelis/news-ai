@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import configuration from './config/configuration';
 import { PrismaModule } from './modules/prisma/prisma.module';
@@ -19,6 +20,7 @@ import { MediaModule } from './modules/media/media.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { StoriesModule } from './modules/stories/stories.module';
 
 @Module({
   imports: [
@@ -28,6 +30,9 @@ import { AdminModule } from './modules/admin/admin.module';
       load: [configuration],
       envFilePath: ['.env.local', '.env'],
     }),
+
+    // ─── Scheduling ──────────────────────────────────────────────────────────
+    ScheduleModule.forRoot(),
 
     // ─── Rate limiting ───────────────────────────────────────────────────────
     ThrottlerModule.forRoot([
@@ -53,6 +58,7 @@ import { AdminModule } from './modules/admin/admin.module';
     HomepageModule,
     AnalyticsModule,
     AdminModule,
+    StoriesModule,
   ],
   controllers: [AppController],
   providers: [

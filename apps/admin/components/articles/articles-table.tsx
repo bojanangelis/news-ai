@@ -74,14 +74,21 @@ export function ArticlesTable({ articles = [], total, totalPages, currentPage }:
             {articles.length > 0 && articles.map((article) => (
               <tr key={article.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/20">
                 <td className="px-4 py-3 max-w-[280px]">
-                  <Link href={`/articles/${article.id}`} className="font-medium hover:text-accent transition-colors line-clamp-1">
-                    {article.title}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    {(article as unknown as { isBreaking?: boolean }).isBreaking && (
+                      <span className="shrink-0 inline-flex items-center rounded-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-bold uppercase">
+                        Breaking
+                      </span>
+                    )}
+                    <Link href={`/articles/${article.id}`} className="font-medium hover:text-accent transition-colors line-clamp-1">
+                      {article.title}
+                    </Link>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-neutral-500">{article.category.name}</td>
                 <td className="px-4 py-3 text-neutral-500">{article.author.name}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={"DRAFT"} />
+                  <StatusBadge status={(article as unknown as { status?: string }).status ?? "DRAFT"} />
                 </td>
                 <td className="px-4 py-3 text-neutral-400 whitespace-nowrap">
                   {article.publishedAt

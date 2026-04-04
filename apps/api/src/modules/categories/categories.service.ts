@@ -36,4 +36,22 @@ export class CategoriesService {
     await this.redis.del('categories:all');
     return updated;
   }
+
+  async remove(id: string) {
+    // Move articles to uncategorized / first active category before deleting
+    const fallback = await this.prisma.category.findFirst({
+      where: { isActive: true, id: { not: id } },
+      orderBy: { order: 'asc' },
+    });
+
+    if (fallback) {
+      await this.prisma.article.updateMany({
+        where: { categoryId: id },
+        data: { categoryId: fallback.id },
+      });
+    }
+
+    await this.prisma.category.delete({ where: { id } });
+    await this.redis.del('categories:all');
+  }
 }

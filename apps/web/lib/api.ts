@@ -44,6 +44,7 @@ export function getArticles(params: {
   page?: number;
   limit?: number;
   authorSlug?: string;
+  isBreaking?: boolean;
 }) {
   const qs = new URLSearchParams(
     Object.entries(params)
@@ -75,6 +76,25 @@ export function getCategory(slug: string) {
     `/categories/${slug}`,
     { revalidate: 3600 },
   );
+}
+
+// ─── Authors ─────────────────────────────────────────────────────────────────
+
+export function getAuthor(slug: string) {
+  return apiFetch<{
+    data: {
+      id: string;
+      displayName: string;
+      slug: string;
+      bio: string | null;
+      avatarUrl: string | null;
+      twitterUrl: string | null;
+      linkedInUrl: string | null;
+      websiteUrl: string | null;
+      isVerified: boolean;
+      _count: { articles: number };
+    };
+  }>(`/authors/${slug}`, { revalidate: 3600 });
 }
 
 // ─── Topics ───────────────────────────────────────────────────────────────────

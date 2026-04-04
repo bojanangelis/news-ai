@@ -12,12 +12,20 @@ export class ArticlesService {
   ) {}
 
   async findAll(query: ArticlesQueryDto) {
-    const { page = 1, limit = 20, category, status = 'PUBLISHED' } = query;
+    const { page = 1, limit = 20, category, status = 'PUBLISHED', authorSlug, isBreaking, q } = query;
     const skip = (page - 1) * limit;
 
     const where = {
       status: status as ArticleStatus,
       ...(category && { category: { slug: category } }),
+      ...(authorSlug && { author: { slug: authorSlug } }),
+      ...(isBreaking !== undefined && { isBreaking }),
+      ...(q && {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' as const } },
+          { excerpt: { contains: q, mode: 'insensitive' as const } },
+        ],
+      }),
     };
 
     const [articles, total] = await Promise.all([
@@ -32,7 +40,7 @@ export class ArticlesService {
     ]);
 
     return {
-      data: articles,
+      data: articles.map(this.normalizeArticle),
       total,
       page,
       limit,
@@ -68,7 +76,10 @@ export class ArticlesService {
           include: this.articleSummaryInclude(),
         });
 
-        return { ...article, relatedArticles: related };
+        return {
+          ...this.normalizeArticle(article),
+          relatedArticles: related.map(this.normalizeArticle),
+        };
       },
       300, // 5 min TTL
     ).then(async (article) => {
@@ -81,6 +92,12 @@ export class ArticlesService {
     });
   }
 
+  private audit(userId: string, action: string, entityType: string, entityId?: string, before?: unknown, after?: unknown) {
+    this.prisma.adminAuditLog.create({
+      data: { userId, action, entityType, entityId, before: before as any, after: after as any },
+    }).catch(() => {});
+  }
+
   async create(dto: CreateArticleDto, authorId: string) {
     const slug = dto.slug ?? this.generateSlug(dto.title);
 
@@ -91,6 +108,7 @@ export class ArticlesService {
         excerpt: dto.excerpt,
         status: (dto.status ?? 'DRAFT') as ArticleStatus,
         isPremium: dto.isPremium ?? false,
+        isBreaking: dto.isBreaking ?? false,
         category: { connect: { id: dto.categoryId } },
         author: { connect: { id: authorId } },
         ...(dto.coverImageId && { coverImage: { connect: { id: dto.coverImageId } } }),
@@ -115,10 +133,11 @@ export class ArticlesService {
       include: this.articleSummaryInclude(),
     });
 
+    this.audit(authorId, 'article.create', 'Article', article.id, null, { title: article.title, status: article.status });
     return article;
   }
 
-  async update(id: string, dto: UpdateArticleDto) {
+  async update(id: string, dto: UpdateArticleDto, userId?: string) {
     const article = await this.findById(id);
 
     const updated = await this.prisma.article.update({
@@ -132,6 +151,7 @@ export class ArticlesService {
             : { disconnect: true },
         }),
         ...(dto.isPremium !== undefined && { isPremium: dto.isPremium }),
+        ...(dto.isBreaking !== undefined && { isBreaking: dto.isBreaking }),
         ...(dto.categoryId && { category: { connect: { id: dto.categoryId } } }),
         ...(dto.sections && {
           sections: {
@@ -155,10 +175,11 @@ export class ArticlesService {
     });
 
     await this.redis.del(`article:${article.slug}`);
+    if (userId) this.audit(userId, 'article.update', 'Article', id, { title: article.title }, { title: dto.title ?? article.title });
     return updated;
   }
 
-  async publish(id: string) {
+  async publish(id: string, userId?: string) {
     const article = await this.findById(id);
     if (article.status === 'PUBLISHED') return article;
 
@@ -171,17 +192,56 @@ export class ArticlesService {
     await this.redis.delPattern('homepage:*');
     await this.redis.delPattern(`category:${article.category?.slug}:*`);
 
+    if (userId) this.audit(userId, 'article.publish', 'Article', id, { status: 'DRAFT' }, { status: 'PUBLISHED' });
     return published;
   }
 
-  async archive(id: string) {
+  async archive(id: string, userId?: string) {
     const article = await this.findById(id);
     const archived = await this.prisma.article.update({
       where: { id },
       data: { status: 'ARCHIVED' },
     });
     await this.redis.del(`article:${article.slug}`);
+    if (userId) this.audit(userId, 'article.archive', 'Article', id, { status: article.status }, { status: 'ARCHIVED' });
     return archived;
+  }
+
+  async getRecommended(userId: string, limit = 20) {
+    // Find the user's top 3 categories from recent views (last 30 days)
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const viewedCategories = await this.prisma.articleView.findMany({
+      where: { userId, viewedAt: { gte: since } },
+      include: { article: { select: { categoryId: true } } },
+      take: 100,
+      orderBy: { viewedAt: 'desc' },
+    });
+
+    const categoryCounts = new Map<string, number>();
+    for (const v of viewedCategories) {
+      if (v.article?.categoryId) {
+        categoryCounts.set(v.article.categoryId, (categoryCounts.get(v.article.categoryId) ?? 0) + 1);
+      }
+    }
+
+    const topCategoryIds = [...categoryCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id]) => id);
+
+    const where = {
+      status: 'PUBLISHED' as const,
+      ...(topCategoryIds.length > 0 && { categoryId: { in: topCategoryIds } }),
+    };
+
+    const articles = await this.prisma.article.findMany({
+      where,
+      take: limit,
+      orderBy: { publishedAt: 'desc' },
+      include: this.articleSummaryInclude(),
+    });
+
+    return articles.map(this.normalizeArticle);
   }
 
   async recordView(articleId: string, userId?: string, sessionId?: string) {
@@ -204,6 +264,14 @@ export class ArticlesService {
     if (!article) throw new NotFoundException('Article not found');
     return article;
   }
+
+  // Maps Prisma Author.displayName → name so the client type (ArticleAuthor.name) works
+  private normalizeArticle = <T extends { author: { displayName: string; [k: string]: unknown } }>(
+    article: T,
+  ): T & { author: { name: string } } => ({
+    ...article,
+    author: { ...article.author, name: article.author.displayName },
+  });
 
   private articleSummaryInclude() {
     return {

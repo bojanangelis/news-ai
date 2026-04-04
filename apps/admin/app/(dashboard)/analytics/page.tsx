@@ -11,7 +11,7 @@ export const revalidate = 300;
 export default async function AnalyticsPage() {
   const [statsRes, topRes] = await Promise.allSettled([
     adminFetch<{ data: AdminDashboardStats }>("/analytics/dashboard"),
-    adminFetch<{ data: { articleId: string; _count: { articleId: number } }[] }>("/analytics/top-articles?days=7&limit=20"),
+    adminFetch<{ data: { articleId: string; views: number; article: { id: string; title: string; slug: string; category: { name: string } } | null }[] }>("/analytics/top-articles?days=7&limit=20"),
   ]);
 
   const stats = statsRes.status === "fulfilled" ? statsRes.value.data : null;

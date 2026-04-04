@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Param, Body, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -16,14 +16,32 @@ export class AdminUsersController {
   }
 
   @Roles('SUPER_ADMIN')
+  @Post()
+  createUser(@Body() body: { name: string; email: string; password: string; role: string }, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.createUser(body, admin.sub);
+  }
+
+  @Roles('SUPER_ADMIN')
   @Patch(':id/role')
-  updateRole(@Param('id') id: string, @Body('role') role: string) {
-    return this.adminService.updateUserRole(id, role);
+  updateRole(@Param('id') id: string, @Body('role') role: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.updateUserRole(id, role, admin.sub);
   }
 
   @Roles('SUPER_ADMIN', 'EDITOR')
   @Post(':id/ban')
   ban(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
     return this.adminService.banUser(id, admin.sub);
+  }
+
+  @Roles('SUPER_ADMIN', 'EDITOR')
+  @Post(':id/unban')
+  unban(@Param('id') id: string) {
+    return this.adminService.unbanUser(id);
+  }
+
+  @Roles('SUPER_ADMIN')
+  @Delete(':id')
+  deleteUser(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.deleteUser(id, admin.sub);
   }
 }

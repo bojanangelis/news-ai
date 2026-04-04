@@ -47,8 +47,8 @@ export class ArticlesController {
   @Patch(':id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update article' })
-  update(@Param('id') id: string, @Body() dto: UpdateArticleDto) {
-    return this.articlesService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateArticleDto, @CurrentUser() user: JwtPayload) {
+    return this.articlesService.update(id, dto, user.sub);
   }
 
   @Roles('EDITOR', 'SUPER_ADMIN')
@@ -56,8 +56,8 @@ export class ArticlesController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Publish article' })
-  publish(@Param('id') id: string) {
-    return this.articlesService.publish(id);
+  publish(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.articlesService.publish(id, user.sub);
   }
 
   @Roles('EDITOR', 'SUPER_ADMIN')
@@ -65,8 +65,8 @@ export class ArticlesController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archive article' })
-  archive(@Param('id') id: string) {
-    return this.articlesService.archive(id);
+  archive(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.articlesService.archive(id, user.sub);
   }
 
   @Post(':id/view')
@@ -79,5 +79,22 @@ export class ArticlesController {
     @Query('sessionId') sessionId?: string,
   ) {
     return this.articlesService.recordView(id, user?.sub, sessionId);
+  }
+}
+
+// ─── Feed controller (separate path prefix) ───────────────────────────────────
+
+@ApiTags('feed')
+@Controller({ path: 'feed', version: '1' })
+export class FeedController {
+  constructor(private articlesService: ArticlesService) {}
+
+  @Get('recommended')
+  @ApiOperation({ summary: 'Personalized article recommendations' })
+  getRecommended(
+    @CurrentUser() user: JwtPayload,
+    @Query('limit') limit = 20,
+  ) {
+    return this.articlesService.getRecommended(user.sub, +limit);
   }
 }

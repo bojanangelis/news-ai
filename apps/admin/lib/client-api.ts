@@ -34,7 +34,7 @@ export const articlesAdminApi = {
 
 export const scrapingSourcesApi = {
   list: () => adminClientFetch("/admin/scraping-sources"),
-  create: (data: { name: string; url: string; scrapeIntervalMinutes?: number; notes?: string; defaultCategoryId?: string }) =>
+  create: (data: { name: string; url: string; scrapeIntervalMinutes?: number; maxPagesPerRun?: number; maxArticlesPerRun?: number; notes?: string; defaultCategoryId?: string }) =>
     adminClientFetch("/admin/scraping-sources", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, unknown>) =>
     adminClientFetch(`/admin/scraping-sources/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

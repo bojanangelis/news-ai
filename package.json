@@ -11,9 +11,9 @@
     "db:migrate": "turbo run db:migrate --filter=@repo/database",
     "db:seed": "pnpm --filter @repo/database db:seed",
     "db:studio": "pnpm --filter @repo/database db:studio",
-    "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down",
-    "infra:reset": "docker compose down -v"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

@@ -12,6 +12,16 @@ export function NavSearch() {
     e.preventDefault();
     if (query.trim()) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    } else {
+      router.push("/");
+    }
+  }
+
+  // Fires when the native browser × clear button is clicked on type="search"
+  function handleSearchEvent(e: React.ChangeEvent<HTMLInputElement>) {
+    setQuery(e.target.value);
+    if (e.target.value === "") {
+      router.push("/");
     }
   }
 
@@ -26,7 +36,7 @@ export function NavSearch() {
         ref={inputRef}
         type="search"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={handleSearchEvent}
         placeholder="Search stories..."
         className="w-full rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 pl-9 pr-4 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
       />

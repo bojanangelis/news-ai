@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { adminClientFetch } from "@/lib/client-api";
+import { useToast } from "@/components/ui/toast";
 
 interface TopicRow {
   id: string;
@@ -21,6 +22,7 @@ export function TopicsTable({ topics: initial }: Props) {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: "", slug: "", description: "" });
   const [saving, setSaving] = useState(false);
+  const { toast, confirm } = useToast();
 
   async function handleCreate() {
     setSaving(true);
@@ -32,20 +34,28 @@ export function TopicsTable({ topics: initial }: Props) {
       setTopics((prev) => [...prev, res.data]);
       setShowNew(false);
       setForm({ name: "", slug: "", description: "" });
+      toast.success("Topic created");
     } catch {
-      // TODO: toast
+      toast.error("Failed to create topic");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this topic? Followers will be unsubscribed.")) return;
+    const ok = await confirm({
+      title: "Delete this topic?",
+      description: "All followers will be unsubscribed. This cannot be undone.",
+      confirmLabel: "Delete topic",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       await adminClientFetch(`/topics/${id}`, { method: "DELETE" });
       setTopics((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Topic deleted");
     } catch {
-      // TODO: toast
+      toast.error("Failed to delete topic");
     }
   }
 

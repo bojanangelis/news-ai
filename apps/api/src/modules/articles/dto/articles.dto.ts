@@ -71,6 +71,10 @@ export class CreateArticleDto {
   @IsOptional() @IsBoolean()
   isPremium?: boolean;
 
+  @ApiPropertyOptional()
+  @IsOptional() @IsBoolean()
+  isBreaking?: boolean;
+
   @ApiPropertyOptional({ enum: ['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'] })
   @IsOptional() @IsEnum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'])
   status?: string;
@@ -93,4 +97,10 @@ export class ArticlesQueryDto {
 
   @IsOptional() @IsString()
   authorSlug?: string;
+
+  @IsOptional() @IsString()
+  q?: string;
+
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
+  isBreaking?: boolean;
 }

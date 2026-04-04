@@ -5,7 +5,7 @@ import { UsersTable } from "@/components/users/users-table"
 export const metadata: Metadata = { title: "Users" }
 
 interface Props {
-  searchParams: Promise<{ page?: string; role?: string; q?: string }>
+  searchParams: Promise<{ page?: string }>
 }
 
 interface UserRow {
@@ -15,26 +15,26 @@ interface UserRow {
   role: string
   isActive: boolean
   createdAt: string
+  _count?: { bookmarks: number; articleViews: number }
 }
 
 export default async function UsersPage({ searchParams }: Props) {
-  const { page = "1", role, q } = await searchParams
+  const { page = "1" } = await searchParams
 
-  const qs = new URLSearchParams({
-    page,
-    limit: "25",
-    ...(role && { role }),
-    ...(q && { q }),
-  }).toString()
+  // The TransformInterceptor wraps the response: { data: <payload>, timestamp }
+  // findAllUsers returns { data: UserRow[], total, totalPages }
+  // So the full shape from adminFetch is { data: { data: UserRow[], total, totalPages }, timestamp }
+  let users: UserRow[] = []
+  let total = 0
+  let totalPages = 0
 
-  let data: { data: UserRow[]; total: number; totalPages: number } = {
-    data: [],
-    total: 0,
-    totalPages: 0,
-  }
   try {
-    const res = await adminFetch<typeof data>(`/admin/users?${qs}`)
-    data = res
+    const res = await adminFetch<{ data: { data: UserRow[]; total: number; totalPages: number } }>(
+      `/admin/users?page=${page}&limit=25`,
+    )
+    users = res.data.data
+    total = res.data.total
+    totalPages = res.data.totalPages
   } catch {
     // handled below
   }
@@ -44,14 +44,14 @@ export default async function UsersPage({ searchParams }: Props) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Users</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          {data.total?.toLocaleString()} registered users
+          {total.toLocaleString()} registered users
         </p>
       </div>
 
       <UsersTable
-        users={data.data}
-        total={data.total}
-        totalPages={data.totalPages}
+        users={users}
+        total={total}
+        totalPages={totalPages}
         currentPage={parseInt(page, 10)}
       />
     </div>

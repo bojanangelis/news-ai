@@ -20,6 +20,18 @@ class CreateScrapingSourceDto {
   scrapeIntervalMinutes?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  maxPagesPerRun?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  maxArticlesPerRun?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 
@@ -46,6 +58,18 @@ class UpdateScrapingSourceDto {
   @Min(5)
   @Max(1440)
   scrapeIntervalMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  maxPagesPerRun?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  maxArticlesPerRun?: number;
 
   @IsOptional()
   @IsString()
@@ -79,6 +103,12 @@ export class AdminScrapingController {
   }
 
   @Roles('SUPER_ADMIN', 'EDITOR')
+  @Get('health')
+  getHealth() {
+    return this.scrapingService.getHealth();
+  }
+
+  @Roles('SUPER_ADMIN', 'EDITOR')
   @Post()
   create(@Body() dto: CreateScrapingSourceDto, @CurrentUser() admin: JwtPayload) {
     return this.adminService.createScrapingSource(dto, admin.sub);
@@ -86,20 +116,38 @@ export class AdminScrapingController {
 
   @Roles('SUPER_ADMIN', 'EDITOR')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateScrapingSourceDto) {
-    return this.adminService.updateScrapingSource(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateScrapingSourceDto, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.updateScrapingSource(id, dto, admin.sub);
   }
 
   @Roles('SUPER_ADMIN', 'EDITOR')
   @Post(':id/toggle')
-  toggle(@Param('id') id: string) {
-    return this.adminService.toggleScrapingSource(id);
+  toggle(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.toggleScrapingSource(id, admin.sub);
   }
 
   @Roles('SUPER_ADMIN', 'EDITOR')
   @Post(':id/scrape')
   scrapeNow(@Param('id') id: string) {
     return this.scrapingService.scrapeNow(id);
+  }
+
+  @Roles('SUPER_ADMIN', 'EDITOR')
+  @Post('scrape-all')
+  async scrapeAll() {
+    return this.adminService.scrapeAllActive(this.scrapingService);
+  }
+
+  @Roles('SUPER_ADMIN', 'EDITOR')
+  @Post('recategorize')
+  async recategorize() {
+    return this.scrapingService.recategorizeAll();
+  }
+
+  @Roles('SUPER_ADMIN', 'EDITOR')
+  @Post('backfill-images')
+  async backfillImages(@Query('limit') limit = 100) {
+    return this.scrapingService.backfillImages(+limit);
   }
 
   @Roles('SUPER_ADMIN', 'EDITOR')
@@ -110,7 +158,7 @@ export class AdminScrapingController {
 
   @Roles('SUPER_ADMIN')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adminService.deleteScrapingSource(id);
+  remove(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.deleteScrapingSource(id, admin.sub);
   }
 }
