@@ -8,11 +8,11 @@ const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:4000"
 
 // ─── Dimension map per placement ──────────────────────────────────────────────
 const PLACEMENT_STYLES: Record<AdPlacement, string> = {
-  TOP_BANNER: "w-full h-[90px] md:h-[90px]",
+  TOP_BANNER: "w-full h-[120px] md:h-[160px]",
   SIDEBAR_RIGHT: "w-full aspect-[4/5] max-w-[300px]",
-  FEED_INLINE: "w-full h-[200px]",
-  STICKY_BOTTOM: "w-full h-[50px] md:h-[90px]",
-  ARTICLE_INLINE: "w-full h-[200px]",
+  FEED_INLINE: "w-full h-[250px] md:h-[300px]",
+  STICKY_BOTTOM: "w-full h-[60px] md:h-[90px]",
+  ARTICLE_INLINE: "w-full h-[250px] md:h-[300px]",
   SPONSORED_CARD: "w-full aspect-[4/3]",
   FULL_SCREEN_TAKEOVER: "fixed inset-0 z-50",
   POPUP: "w-full max-w-[600px] aspect-[3/2]",

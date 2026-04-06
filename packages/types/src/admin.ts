@@ -29,6 +29,13 @@ export interface AdminDashboardStats {
   totalUsers: number;
   newUsersToday: number;
   premiumSubscribers: number;
+  articlesInReview: number;
+  articlesDraft: number;
+  viewsLast7Days: { date: string; views: number }[];
+  categoryBreakdown: { name: string; articles: number }[];
+  adImpressionsToday: number;
+  adClicksToday: number;
+  activeAdsCount: number;
 }
 
 export type ScrapingSourceStatus = "PENDING" | "ACTIVE" | "ERROR" | "PAUSED";

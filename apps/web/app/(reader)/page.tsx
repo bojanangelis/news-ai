@@ -54,36 +54,61 @@ export default async function HomePage() {
     <DailyPopupLoader currentPath="/" />
 
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-14">
-      {/* Top banner ad */}
+      {/* Top banner ad — full width, prominent */}
       <AdSlot placement="TOP_BANNER" page="/" className="mb-4" />
 
       {hasSections ? (
-        populatedSections.map((section, idx) => {
-          const el = (() => {
-            switch (section.type) {
-              case "HERO":
-                return <HeroSection key={section.id} section={section} />;
-              case "FEATURED_GRID":
-                return <FeaturedGrid key={section.id} section={section} />;
-              case "CATEGORY_ROW":
-                return <CategoryRow key={section.id} section={section} />;
-              case "TRENDING":
-                return <TrendingSection key={section.id} section={section} />;
-              default:
-                return null;
-            }
-          })();
+        <>
+          {populatedSections.map((section, idx) => {
+            const el = (() => {
+              switch (section.type) {
+                case "HERO":
+                  return <HeroSection key={section.id} section={section} />;
+                case "FEATURED_GRID":
+                  return <FeaturedGrid key={section.id} section={section} />;
+                case "CATEGORY_ROW":
+                  return <CategoryRow key={section.id} section={section} />;
+                case "TRENDING":
+                  return <TrendingSection key={section.id} section={section} />;
+                default:
+                  return null;
+              }
+            })();
 
-          return (
-            <div key={section.id}>
-              {el}
-              {/* Weather + air quality widget after the hero section */}
-              {idx === 0 && <div className="mt-6"><WeatherAirWidget /></div>}
-              {/* Inline feed ad after second section */}
-              {idx === 1 && <AdSlot placement="FEED_INLINE" page="/" className="mt-8" />}
+            return (
+              <div key={section.id}>
+                {el}
+                {/* Weather + air quality widget after the hero section */}
+                {idx === 0 && <div className="mt-6"><WeatherAirWidget /></div>}
+                {/* Inline feed ad after every even section (2nd, 4th, …) */}
+                {idx % 2 === 1 && (
+                  <AdSlot placement="FEED_INLINE" page="/" className="mt-8" />
+                )}
+              </div>
+            );
+          })}
+
+          {/* Mid-page wide banner — second TOP_BANNER for extra visibility */}
+          <AdSlot placement="TOP_BANNER" page="/" className="my-4" />
+
+          {/* Bottom section: latest articles alongside a sidebar ad */}
+          {latestArticles.length > 0 && (
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold tracking-tight mb-6">Најнови вести</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {latestArticles.slice(0, 6).map((article) => (
+                    <ArticleCard key={article.id} article={article} />
+                  ))}
+                </div>
+              </div>
+              {/* Sidebar ad */}
+              <aside className="hidden lg:block w-[300px] shrink-0">
+                <AdSlot placement="SIDEBAR_RIGHT" page="/" />
+              </aside>
             </div>
-          );
-        })
+          )}
+        </>
       ) : (
         <div>
           <h2 className="text-2xl font-bold tracking-tight mb-6">Најнови вести</h2>
@@ -92,10 +117,17 @@ export default async function HomePage() {
               Сè уште нема објавени написи. Додадете извор за стружење и притиснете „Scrape Now".
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {latestArticles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="flex-1 min-w-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {latestArticles.map((article) => (
+                    <ArticleCard key={article.id} article={article} />
+                  ))}
+                </div>
+              </div>
+              <aside className="hidden lg:block w-[300px] shrink-0">
+                <AdSlot placement="SIDEBAR_RIGHT" page="/" />
+              </aside>
             </div>
           )}
         </div>
