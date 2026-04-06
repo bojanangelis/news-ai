@@ -48,6 +48,45 @@ export const scrapingSourcesApi = {
     adminClientFetch(`/admin/scraping-sources/${id}`, { method: "DELETE" }),
 };
 
+export const adsAdminApi = {
+  // Dashboard
+  getDashboard: () => adminClientFetch("/admin/ads/dashboard"),
+
+  // Advertisers
+  listAdvertisers: () => adminClientFetch("/admin/ads/advertisers"),
+  createAdvertiser: (data: unknown) =>
+    adminClientFetch("/admin/ads/advertisers", { method: "POST", body: JSON.stringify(data) }),
+  updateAdvertiser: (id: string, data: unknown) =>
+    adminClientFetch(`/admin/ads/advertisers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  // Campaigns
+  listCampaigns: (advertiserId?: string) =>
+    adminClientFetch(`/admin/ads/campaigns${advertiserId ? `?advertiserId=${advertiserId}` : ""}`),
+  createCampaign: (data: unknown) =>
+    adminClientFetch("/admin/ads/campaigns", { method: "POST", body: JSON.stringify(data) }),
+
+  // Ads
+  list: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+    return adminClientFetch(`/admin/ads${qs}`);
+  },
+  get: (id: string) => adminClientFetch(`/admin/ads/${id}`),
+  create: (data: unknown) =>
+    adminClientFetch("/admin/ads", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: unknown) =>
+    adminClientFetch(`/admin/ads/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  updateStatus: (id: string, data: { status: string; rejectionReason?: string }) =>
+    adminClientFetch(`/admin/ads/${id}/status`, { method: "PATCH", body: JSON.stringify(data) }),
+  toggle: (id: string) =>
+    adminClientFetch(`/admin/ads/${id}/toggle`, { method: "POST" }),
+  delete: (id: string) =>
+    adminClientFetch(`/admin/ads/${id}`, { method: "DELETE" }),
+  getStats: (id: string, params?: { from?: string; to?: string }) => {
+    const qs = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : "";
+    return adminClientFetch(`/admin/ads/${id}/stats${qs}`);
+  },
+};
+
 export const mediaAdminApi = {
   upload: (formData: FormData) =>
     fetch(`${API_URL}/v1/media/upload`, {

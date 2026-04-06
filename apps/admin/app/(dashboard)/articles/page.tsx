@@ -6,23 +6,29 @@ import { adminFetch } from "@/lib/api";
 export const metadata: Metadata = { title: "Articles" };
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string; q?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; q?: string; source?: string }>;
 }
 
 export default async function ArticlesPage({ searchParams }: Props) {
-  const { page = "1", status, q } = await searchParams;
+  const { page = "1", status = "ALL", q, source } = await searchParams;
 
   const qs = new URLSearchParams({
     page,
     limit: "25",
-    ...(status && { status }),
+    status,
     ...(q && { q }),
+    ...(source && { source }),
   }).toString();
 
-  let data: { data: unknown[]; total: number; totalPages: number } = { data: [], total: 0, totalPages: 0 };
+  type ArticleRow = import("@repo/types").ArticleSummary;
+  let articles: ArticleRow[] = [];
+  let total = 0;
+  let totalPages = 0;
   try {
-    const res = await adminFetch<typeof data>(`/articles?${qs}`);
-    data = res;
+    const res = await adminFetch<{ data: { data: ArticleRow[]; total: number; totalPages: number } }>(`/articles?${qs}`);
+    articles = res.data.data ?? [];
+    total = res.data.total ?? 0;
+    totalPages = res.data.totalPages ?? 0;
   } catch {
     // handled below
   }
@@ -32,7 +38,7 @@ export default async function ArticlesPage({ searchParams }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Articles</h1>
-          <p className="text-sm text-neutral-500 mt-1">{data.total?.toLocaleString()} total articles</p>
+          <p className="text-sm text-neutral-500 mt-1">{total.toLocaleString()} total articles</p>
         </div>
         <Link
           href="/articles/new"
@@ -67,7 +73,7 @@ export default async function ArticlesPage({ searchParams }: Props) {
         )}
       </form>
 
-      <ArticlesTable articles={data.data as import("@repo/types").ArticleSummary[]} total={data.total} totalPages={data.totalPages} currentPage={parseInt(page, 10)} />
+      <ArticlesTable articles={articles} total={total} totalPages={totalPages} currentPage={parseInt(page, 10)} />
     </div>
   );
 }

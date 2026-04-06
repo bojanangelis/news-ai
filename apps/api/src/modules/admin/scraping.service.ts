@@ -203,8 +203,29 @@ export class ScrapingService {
       }
 
       // ── Resolve author + all categories ─────────────────────────────────────
-      const author = await this.prisma.author.findFirst({ orderBy: { createdAt: 'asc' } });
-      if (!author) throw new Error('No author found — run db:seed first.');
+      // Ensure the system "Редакција" user+author exist (created on-demand if deleted)
+      const systemUser = await this.prisma.user.upsert({
+        where: { email: 'redakcija@system.internal' },
+        update: {},
+        create: {
+          email: 'redakcija@system.internal',
+          name: 'Редакција',
+          passwordHash: '',
+          role: 'WRITER',
+          isActive: false,
+        },
+      });
+      const author = await this.prisma.author.upsert({
+        where: { slug: 'redakcija' },
+        update: {},
+        create: {
+          userId: systemUser.id,
+          slug: 'redakcija',
+          displayName: 'Редакција',
+          bio: 'Редакциски тим на NewsPlus.',
+          isVerified: true,
+        },
+      });
 
       const allCategories = await this.prisma.category.findMany({
         where: { isActive: true },
@@ -225,9 +246,14 @@ export class ScrapingService {
         // Deduplication check
         const existing = await this.prisma.article.findFirst({
           where: { OR: [{ slug }, { sourceUrl: item.link }] },
-          select: { id: true },
+          select: { id: true, readTimeMinutes: true },
         });
         if (existing) {
+          // If read time was never properly estimated, fix it now
+          if (existing.readTimeMinutes === 0 && item.link) {
+            const rt = await this.estimateReadTime(item.link, excerpt.split(' ').length);
+            await this.prisma.article.update({ where: { id: existing.id }, data: { readTimeMinutes: rt } });
+          }
           structuredData.skippedUrls.push(item.link);
           articlesSkipped++;
           continue;
@@ -245,6 +271,10 @@ export class ScrapingService {
         if (item.imageUrl) imagesFound++;
 
         try {
+          const readTimeMinutes = item.link
+            ? await this.estimateReadTime(item.link, excerpt.split(' ').length)
+            : Math.max(2, Math.ceil((excerpt.split(' ').length * 8) / 200));
+
           const saved = await this.prisma.article.create({
             data: {
               title: item.title,
@@ -256,7 +286,7 @@ export class ScrapingService {
               publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
               authorId: author.id,
               categoryId: category.id,
-              readTimeMinutes: Math.max(1, Math.ceil(excerpt.split(' ').length / 200)),
+              readTimeMinutes,
               sections: {
                 create: [
                   { type: 'PARAGRAPH', order: 0, content: excerpt },
@@ -603,6 +633,28 @@ export class ScrapingService {
           : undefined,
       },
     });
+  }
+
+  // ─── Read-time estimator ─────────────────────────────────────────────────────
+
+  private async estimateReadTime(articleUrl: string, fallbackWords: number): Promise<number> {
+    try {
+      const html = await this.fetchRaw(articleUrl, 5_000);
+      // Strip all HTML tags, scripts, styles
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&[a-z#0-9]+;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const words = text.split(' ').filter((w) => w.length > 1).length;
+      // Subtract boilerplate (nav, footer etc.) — keep a conservative 60% of words
+      const articleWords = Math.floor(words * 0.6);
+      return Math.max(1, Math.round(articleWords / 200));
+    } catch {
+      return Math.max(2, Math.ceil((fallbackWords * 8) / 200));
+    }
   }
 
   // ─── HTTP helper ──────────────────────────────────────────────────────────────

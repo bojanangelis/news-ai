@@ -18,6 +18,7 @@ export function ArticlesTable({ articles = [], total, totalPages, currentPage }:
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentStatus = searchParams.get("status") ?? "";
+  const currentSource = searchParams.get("source") ?? "";
 
   function navigate(params: Record<string, string>) {
     const sp = new URLSearchParams(searchParams.toString());
@@ -40,22 +41,41 @@ export function ArticlesTable({ articles = [], total, totalPages, currentPage }:
 
   return (
     <div className="space-y-4">
-      {/* Status tabs */}
-      <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl p-1 w-fit">
-        {STATUS_TABS.map((s) => (
-          <button
-            key={s}
-            onClick={() => navigate({ status: s, page: "1" })}
-            className={[
-              "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
-              currentStatus === s
-                ? "bg-white dark:bg-neutral-900 shadow-sm text-neutral-900 dark:text-neutral-100"
-                : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300",
-            ].join(" ")}
-          >
-            {s || "All"}
-          </button>
-        ))}
+      {/* Source + Status filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl p-1">
+          {(["", "manual", "scraped"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => navigate({ source: s, page: "1" })}
+              className={[
+                "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                currentSource === s
+                  ? "bg-white dark:bg-neutral-900 shadow-sm text-neutral-900 dark:text-neutral-100"
+                  : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300",
+              ].join(" ")}
+            >
+              {s === "" ? "All" : s === "manual" ? "✍️ Created" : "🤖 Scraped"}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl p-1">
+          {STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              onClick={() => navigate({ status: s, page: "1" })}
+              className={[
+                "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                currentStatus === s
+                  ? "bg-white dark:bg-neutral-900 shadow-sm text-neutral-900 dark:text-neutral-100"
+                  : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300",
+              ].join(" ")}
+            >
+              {s || "All"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}

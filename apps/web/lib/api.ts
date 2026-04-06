@@ -103,6 +103,25 @@ export function getTopics() {
   return apiFetch<{ data: unknown[] }>("/topics", { revalidate: 3600 });
 }
 
+// ─── Ads ──────────────────────────────────────────────────────────────────────
+
+export function getActiveAds(params: {
+  placement: string;
+  device?: string;
+  category?: string;
+  page?: string;
+}) {
+  const qs = new URLSearchParams(
+    Object.entries(params)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, String(v)]),
+  ).toString();
+
+  return apiFetch<{ data: { data: unknown[] } }>(`/ads/active?${qs}`, {
+    revalidate: 30, // short cache since ads rotate
+  });
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 export function searchArticles(params: {

@@ -7,7 +7,7 @@ interface Props {
 
 export function ArticleBody({ sections }: Props) {
   return (
-    <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none">
+    <div className="prose prose-neutral dark:prose-invert prose-lg max-w-none text-left">
       {sections.map((section) => (
         <SectionRenderer key={section.id} section={section} />
       ))}

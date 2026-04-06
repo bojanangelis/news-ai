@@ -611,6 +611,184 @@ model DedupeDecision {
   @@map("dedupe_decisions")
 }
 
+// ─── Ads ──────────────────────────────────────────────────────────────────────
+
+enum AdType {
+  POPUP
+  TOP_BANNER
+  INLINE_FEED
+  SIDEBAR
+  STICKY_BOTTOM
+  SPONSORED_CARD
+  FULL_SCREEN_TAKEOVER
+}
+
+enum AdPlacement {
+  POPUP
+  TOP_BANNER
+  SIDEBAR_RIGHT
+  FEED_INLINE
+  STICKY_BOTTOM
+  ARTICLE_INLINE
+  SPONSORED_CARD
+  FULL_SCREEN_TAKEOVER
+}
+
+enum AdStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  EXPIRED
+}
+
+enum AdDeviceTarget {
+  ALL
+  DESKTOP
+  MOBILE
+}
+
+enum AdEventType {
+  IMPRESSION
+  CLICK
+}
+
+model Advertiser {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  website     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ads         Ad[]
+  campaigns   AdCampaign[]
+
+  @@index([isActive])
+}
+
+model AdCampaign {
+  id           String     @id @default(cuid())
+  name         String
+  advertiserId String
+  advertiser   Advertiser @relation(fields: [advertiserId], references: [id])
+  budget       Float?     // optional budget tracking (MKD or EUR)
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean    @default(true)
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ads          Ad[]
+
+  @@index([advertiserId, isActive])
+}
+
+model Ad {
+  id           String      @id @default(cuid())
+  title        String      // internal name for admin
+  advertiserId String
+  advertiser   Advertiser  @relation(fields: [advertiserId], references: [id])
+  campaignId   String?
+  campaign     AdCampaign? @relation(fields: [campaignId], references: [id])
+
+  // Creative assets
+  imageUrl     String?
+  videoUrl     String?
+  altText      String?     // accessibility / fallback text
+
+  // Ad format & placement
+  type         AdType
+  placement    AdPlacement
+  deviceTarget AdDeviceTarget @default(ALL)
+
+  // Targeting (empty array = target all)
+  categoryTargets String[]  // category slugs (e.g. ["sport", "politika"])
+  pageTargets     String[]  // URL path prefixes (e.g. ["/", "/category/sport"])
+
+  // Destination
+  destinationUrl String
+  trackingUrl    String?   // optional 3rd-party impression tracker URL
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+
+  // Scheduling
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int?      // planned run duration (informational)
+
+  // Popup-specific config (only used when type = POPUP)
+  popupDelaySec       Int     @default(0)   // seconds to wait before showing
+  popupHomepageOnly   Boolean @default(false)
+
+  // Rotation / priority
+  priority    Int @default(5)   // 1–10; higher = served more often
+  weight      Int @default(100) // weight for weighted-random rotation
+
+  // Impression / click limits
+  maxImpressionsPerDay Int?
+  maxTotalImpressions  Int?
+  maxClicks            Int?
+
+  // Status
+  status          AdStatus @default(PENDING)
+  isEnabled       Boolean  @default(true)
+  rejectionReason String?
+
+  // Denormalized counters (updated by service on each event)
+  totalImpressions Int @default(0)
+  totalClicks      Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dailyStats AdDailyStat[]
+  events     AdEvent[]
+
+  @@index([placement, status, isEnabled])
+  @@index([startDate, endDate])
+  @@index([advertiserId])
+  @@index([status, updatedAt(sort: Desc)])
+}
+
+// ─── Ad daily stats (one row per ad per day for fast analytics) ───────────────
+
+model AdDailyStat {
+  id          String   @id @default(cuid())
+  adId        String
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+
+  @@unique([adId, date])
+  @@index([date(sort: Desc)])
+}
+
+// ─── Individual ad events (for detailed analytics / frequency capping) ────────
+
+model AdEvent {
+  id         String       @id @default(cuid())
+  adId       String
+  ad         Ad           @relation(fields: [adId], references: [id], onDelete: Cascade)
+  type       AdEventType
+  sessionId  String?
+  ipHash     String?      // SHA-256 of IP for privacy-safe dedup
+  userAgent  String?
+  deviceType String?      // "desktop" | "mobile" | "tablet"
+  referer    String?
+  createdAt  DateTime     @default(now())
+
+  @@index([adId, type, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
 // ─── AdminAuditLog ────────────────────────────────────────────────────────────
 
 model AdminAuditLog {

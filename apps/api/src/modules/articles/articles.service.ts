@@ -12,14 +12,16 @@ export class ArticlesService {
   ) {}
 
   async findAll(query: ArticlesQueryDto) {
-    const { page = 1, limit = 20, category, status = 'PUBLISHED', authorSlug, isBreaking, q } = query;
+    const { page = 1, limit = 20, category, status = 'PUBLISHED', authorSlug, isBreaking, q, source } = query;
     const skip = (page - 1) * limit;
 
     const where = {
-      status: status as ArticleStatus,
+      ...(status !== 'ALL' && { status: status as ArticleStatus }),
       ...(category && { category: { slug: category } }),
       ...(authorSlug && { author: { slug: authorSlug } }),
       ...(isBreaking !== undefined && { isBreaking }),
+      ...(source === 'manual' && { sourceUrl: null }),
+      ...(source === 'scraped' && { sourceUrl: { not: null } }),
       ...(q && {
         OR: [
           { title: { contains: q, mode: 'insensitive' as const } },
@@ -98,8 +100,17 @@ export class ArticlesService {
     }).catch(() => {});
   }
 
-  async create(dto: CreateArticleDto, authorId: string) {
+  async create(dto: CreateArticleDto, userId: string) {
     const slug = dto.slug ?? this.generateSlug(dto.title);
+
+    // dto.authorId is the Author profile ID sent by the admin editor.
+    // Fall back to looking up the author profile by userId.
+    let authorProfileId = dto.authorId;
+    if (!authorProfileId) {
+      const profile = await this.prisma.author.findUnique({ where: { userId } });
+      if (!profile) throw new Error('No author profile found for this user');
+      authorProfileId = profile.id;
+    }
 
     const article = await this.prisma.article.create({
       data: {
@@ -110,7 +121,7 @@ export class ArticlesService {
         isPremium: dto.isPremium ?? false,
         isBreaking: dto.isBreaking ?? false,
         category: { connect: { id: dto.categoryId } },
-        author: { connect: { id: authorId } },
+        author: { connect: { id: authorProfileId } },
         ...(dto.coverImageId && { coverImage: { connect: { id: dto.coverImageId } } }),
         readTimeMinutes: this.estimateReadTime(dto.sections),
         sections: {
@@ -133,7 +144,7 @@ export class ArticlesService {
       include: this.articleSummaryInclude(),
     });
 
-    this.audit(authorId, 'article.create', 'Article', article.id, null, { title: article.title, status: article.status });
+    this.audit(userId, 'article.create', 'Article', article.id, null, { title: article.title, status: article.status });
     return article;
   }
 
@@ -152,6 +163,7 @@ export class ArticlesService {
         }),
         ...(dto.isPremium !== undefined && { isPremium: dto.isPremium }),
         ...(dto.isBreaking !== undefined && { isBreaking: dto.isBreaking }),
+        ...(dto.ogImageUrl !== undefined && { ogImageUrl: dto.ogImageUrl }),
         ...(dto.categoryId && { category: { connect: { id: dto.categoryId } } }),
         ...(dto.sections && {
           sections: {
@@ -266,6 +278,20 @@ export class ArticlesService {
   }
 
   // Maps Prisma Author.displayName → name so the client type (ArticleAuthor.name) works
+  async findByIdFull(id: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: {
+        ...this.articleSummaryInclude(),
+        sections: { orderBy: { order: 'asc' } },
+        articleTopics: { include: { topic: true } },
+        articleTags: { include: { tag: true } },
+      },
+    });
+    if (!article) return null;
+    return { ...this.normalizeArticle(article), relatedArticles: [] };
+  }
+
   private normalizeArticle = <T extends { author: { displayName: string; [k: string]: unknown } }>(
     article: T,
   ): T & { author: { name: string } } => ({

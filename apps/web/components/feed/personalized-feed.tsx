@@ -20,7 +20,7 @@ export function PersonalizedFeed() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="h-64 rounded-2xl bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
         ))}

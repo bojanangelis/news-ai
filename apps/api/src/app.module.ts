@@ -21,6 +21,7 @@ import { HomepageModule } from './modules/homepage/homepage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { StoriesModule } from './modules/stories/stories.module';
+import { AdsModule } from './modules/ads/ads.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { StoriesModule } from './modules/stories/stories.module';
     AnalyticsModule,
     AdminModule,
     StoriesModule,
+    AdsModule,
   ],
   controllers: [AppController],
   providers: [

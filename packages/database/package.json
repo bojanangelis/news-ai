@@ -16,6 +16,7 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:ads": "tsx prisma/seed-ads.ts",
     "db:recategorize": "tsx prisma/recategorize.ts",
     "db:studio": "prisma studio",
     "check-types": "tsc --noEmit"

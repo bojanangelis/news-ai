@@ -5,6 +5,7 @@ import { CategoryRow } from "@/components/feed/category-row";
 import { TrendingSection } from "@/components/feed/trending-section";
 import { ArticleCard } from "@/components/article/article-card";
 import { WeatherAirWidget } from "@/components/widgets/weather-air-widget";
+import { AdSlot, DailyPopupLoader } from "@/components/ads";
 import { getHomepageSections, getArticles } from "@/lib/api";
 import type { ArticleSummary } from "@repo/types";
 
@@ -48,7 +49,14 @@ export default async function HomePage() {
   const hasSections = populatedSections.length > 0;
 
   return (
+    <>
+    {/* Daily popup — shown once per day, loaded server-side */}
+    <DailyPopupLoader currentPath="/" />
+
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-14">
+      {/* Top banner ad */}
+      <AdSlot placement="TOP_BANNER" page="/" className="mb-4" />
+
       {hasSections ? (
         populatedSections.map((section, idx) => {
           const el = (() => {
@@ -71,6 +79,8 @@ export default async function HomePage() {
               {el}
               {/* Weather + air quality widget after the hero section */}
               {idx === 0 && <div className="mt-6"><WeatherAirWidget /></div>}
+              {/* Inline feed ad after second section */}
+              {idx === 1 && <AdSlot placement="FEED_INLINE" page="/" className="mt-8" />}
             </div>
           );
         })
@@ -91,5 +101,6 @@ export default async function HomePage() {
         </div>
       )}
     </div>
+    </>
   );
 }

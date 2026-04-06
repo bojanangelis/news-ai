@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleEditor } from "@/components/articles/article-editor";
 import { adminFetch } from "@/lib/api";
-import type { ArticleDetail, Category, ArticleAuthor } from "@repo/types";
+import type { Category, ArticleAuthor } from "@repo/types";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -11,8 +11,8 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
-    const { data } = await adminFetch<{ data: { title: string } }>(`/articles/${id}`);
-    return { title: `Edit: ${data.title}` };
+    const res = await adminFetch<{ data: { title: string } }>(`/admin/articles/${id}`);
+    return { title: `Edit: ${res.data.title}` };
   } catch {
     return { title: "Edit Article" };
   }
@@ -22,31 +22,35 @@ export default async function EditArticlePage({ params }: Props) {
   const { id } = await params;
 
   const [articleRes, categoriesRes, authorsRes] = await Promise.allSettled([
-    adminFetch<{ data: ArticleDetail }>(`/articles/${id}`),
+    adminFetch<{ data: Record<string, unknown> }>(`/admin/articles/${id}`),
     adminFetch<{ data: Category[] }>("/categories"),
     adminFetch<{ data: ArticleAuthor[] }>("/authors"),
   ]);
 
   if (articleRes.status === "rejected") notFound();
 
-  const article = (articleRes as PromiseFulfilledResult<{ data: ArticleDetail }>).value.data;
-  const categories = categoriesRes.status === "fulfilled" ? categoriesRes.value.data : [];
-  const authors = authorsRes.status === "fulfilled" ? authorsRes.value.data : [];
+  const article = (articleRes as PromiseFulfilledResult<{ data: Record<string, unknown> }>).value.data;
+
+  // Categories: interceptor wraps array as { data: Category[] }
+  let categories: Category[] = [];
+  if (categoriesRes.status === "fulfilled") {
+    const raw = categoriesRes.value.data as unknown;
+    categories = Array.isArray(raw) ? raw : [];
+  }
+
+  // Authors: interceptor wraps as { data: ArticleAuthor[] }
+  let authors: ArticleAuthor[] = [];
+  if (authorsRes.status === "fulfilled") {
+    const raw = authorsRes.value.data as unknown;
+    authors = Array.isArray(raw) ? raw : [];
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight line-clamp-1">{article.title}</h1>
-          <p className="text-sm text-neutral-500 mt-1 capitalize">{article.status?.toLowerCase()} · {article.category.name}</p>
-        </div>
-      </div>
-      <ArticleEditor
-        mode="edit"
-        article={article}
-        categories={categories}
-        authors={authors}
-      />
-    </div>
+    <ArticleEditor
+      mode="edit"
+      article={article as never}
+      categories={categories}
+      authors={authors}
+    />
   );
 }

@@ -13,7 +13,7 @@ export default async function ForYouPage() {
   if (!session) redirect("/login?next=/for-you");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">For You</h1>
         <p className="mt-2 text-neutral-600 dark:text-neutral-400">

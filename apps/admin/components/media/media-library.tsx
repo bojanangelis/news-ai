@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { mediaAdminApi } from "@/lib/client-api";
 import { useToast } from "@/components/ui/toast";
 import type { MediaAsset } from "@repo/types";
@@ -85,15 +84,39 @@ export function MediaLibrary() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
           {assets.map((asset) => (
             <div key={asset.id} className="group relative aspect-square rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-              <Image src={asset.url} alt={asset.altText ?? ""} fill className="object-cover" />
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <button onClick={() => handleDelete(asset.id)}
-                  className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  title="Delete">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={asset.url} alt={asset.altText ?? ""} className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                <div className="flex gap-2">
+                  {/* Open in new tab */}
+                  <a href={asset.url} target="_blank" rel="noopener noreferrer"
+                    className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors"
+                    title="Open image">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  {/* Copy URL */}
+                  <button onClick={() => { navigator.clipboard.writeText(asset.url); toast.success("URL copied!"); }}
+                    className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors"
+                    title="Copy URL">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  {/* Delete */}
+                  <button onClick={() => handleDelete(asset.id)}
+                    className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    title="Delete">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                {/* File name */}
+                <p className="text-[10px] text-white/70 px-2 text-center truncate max-w-full">
+                  {asset.url.split("/").pop()}
+                </p>
               </div>
             </div>
           ))}

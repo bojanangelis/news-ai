@@ -5,3 +5,4 @@ export * from "./topic";
 export * from "./media";
 export * from "./api";
 export * from "./admin";
+export * from "./ad";

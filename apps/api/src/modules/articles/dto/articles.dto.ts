@@ -80,7 +80,11 @@ export class CreateArticleDto {
   status?: string;
 }
 
-export class UpdateArticleDto extends PartialType(CreateArticleDto) {}
+export class UpdateArticleDto extends PartialType(CreateArticleDto) {
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  ogImageUrl?: string;
+}
 
 export class ArticlesQueryDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(1)
@@ -92,7 +96,7 @@ export class ArticlesQueryDto {
   @IsOptional() @IsString()
   category?: string;
 
-  @IsOptional() @IsEnum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'])
+  @IsOptional() @IsEnum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED', 'ALL'])
   status?: string = 'PUBLISHED';
 
   @IsOptional() @IsString()
@@ -103,4 +107,7 @@ export class ArticlesQueryDto {
 
   @IsOptional() @Type(() => Boolean) @IsBoolean()
   isBreaking?: boolean;
+
+  @IsOptional() @IsEnum(['manual', 'scraped'])
+  source?: string;
 }
