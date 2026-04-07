@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { ActiveAd, AdPlacement } from "@repo/types"
-import { AdRenderer } from "./ad-renderer"
+import { AdRenderer, getOrCreateSessionId, getDeviceType } from "./ad-renderer"
 
 const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:4000"
 
@@ -55,17 +55,29 @@ export function AdSlotClient({ ads, placement, className = "" }: Props) {
     if (!ref.current || !currentAd) return
     impressionTracked.current = false // reset when ad changes
 
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
-          trackImpression(currentAd.id)
-          observer.disconnect()
+        const entry = entries[0]
+        if (entry?.isIntersecting) {
+          // IAB standard: 50% visible for 1 continuous second before counting
+          timer = setTimeout(() => {
+            trackImpression(currentAd.id)
+            observer.disconnect()
+          }, 1000)
+        } else {
+          // Ad left viewport before the second elapsed — cancel
+          if (timer) { clearTimeout(timer); timer = null }
         }
       },
       { threshold: 0.5 },
     )
     observer.observe(ref.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (timer) clearTimeout(timer)
+    }
   }, [currentAd, trackImpression])
 
   // Auto-rotate every 10 seconds when there are multiple ads
@@ -112,22 +124,3 @@ export function AdSlotClient({ ads, placement, className = "" }: Props) {
   )
 }
 
-// ─── Helpers (duplicated from ad-renderer to keep components independent) ─────
-
-function getOrCreateSessionId(): string {
-  const key = "np_sid"
-  let sid = sessionStorage.getItem(key)
-  if (!sid) {
-    sid = Math.random().toString(36).slice(2) + Date.now().toString(36)
-    sessionStorage.setItem(key, sid)
-  }
-  return sid
-}
-
-function getDeviceType(): string {
-  if (typeof window === "undefined") return "desktop"
-  const ua = navigator.userAgent.toLowerCase()
-  if (/mobile|android|iphone|ipod/.test(ua)) return "mobile"
-  if (/tablet|ipad/.test(ua)) return "tablet"
-  return "desktop"
-}

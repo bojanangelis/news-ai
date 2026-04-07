@@ -181,6 +181,10 @@ export class CreateAdDto {
 
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1)
   maxClicks?: number;
+
+  @ApiPropertyOptional({ description: 'Mark as a house ad (shown as fallback when no paid ads exist)' })
+  @IsOptional() @IsBoolean()
+  isHouseAd?: boolean;
 }
 
 export class UpdateAdDto extends PartialType(CreateAdDto) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, Redirect } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AdsService } from './ads.service';
@@ -21,12 +21,35 @@ export class AdsController {
     return { data: ads };
   }
 
-  // ─── Event tracking ──────────────────────────────────────────────────────────
+  // ─── Public: shareable read-only campaign report ─────────────────────────────
+  // NOTE: must be defined before :id routes to avoid NestJS routing ambiguity
+
+  @Public()
+  @Get('report/:token')
+  @ApiOperation({ summary: 'Get public campaign report by share token' })
+  async getPublicReport(@Param('token') token: string) {
+    const report = await this.adsService.getPublicReport(token);
+    return { data: report };
+  }
+
+  // ─── Server-side click redirect ──────────────────────────────────────────────
+
+  @Public()
+  @Get(':id/redirect')
+  @Redirect()
+  @Throttle({ short: { ttl: 1000, limit: 5 }, medium: { ttl: 10000, limit: 30 } })
+  @ApiOperation({ summary: 'Record click and redirect to destination URL' })
+  async redirectClick(@Param('id') id: string, @Req() req: Request) {
+    const url = await this.adsService.recordClickAndGetUrl(id, req);
+    return { url, statusCode: 302 };
+  }
+
+  // ─── Event tracking (impressions) ────────────────────────────────────────────
 
   @Public()
   @Post(':id/event')
   @Throttle({ short: { ttl: 1000, limit: 20 }, medium: { ttl: 10000, limit: 60 } })
-  @ApiOperation({ summary: 'Record an ad impression or click' })
+  @ApiOperation({ summary: 'Record an ad impression' })
   async recordEvent(
     @Param('id') id: string,
     @Body() dto: RecordAdEventDto,

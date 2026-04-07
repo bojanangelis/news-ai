@@ -1,5 +1,6 @@
 import type { ActiveAd, AdPlacement } from "@repo/types";
 import { getActiveAds } from "@/lib/api";
+import { getSessionFromCookies } from "@/lib/auth";
 import { AdSlotClient } from "./ad-slot-client";
 
 interface AdSlotProps {
@@ -9,18 +10,12 @@ interface AdSlotProps {
   className?: string;
 }
 
-/**
- * Server component: fetches active ads for a placement, then renders
- * the client-side AdSlotClient which handles impression tracking + rotation.
- *
- * Usage:
- *   <AdSlot placement="TOP_BANNER" />
- *   <AdSlot placement="FEED_INLINE" category="sport" />
- *   <AdSlot placement="SIDEBAR_RIGHT" />
- */
 export async function AdSlot({ placement, category, page, className }: AdSlotProps) {
-  let ads: ActiveAd[] = [];
+  // Premium users see no ads
+  const session = await getSessionFromCookies();
+  if (session?.isPremium) return null;
 
+  let ads: ActiveAd[] = [];
   try {
     const res = await getActiveAds({ placement, category, page });
     ads = (res.data.data ?? []) as ActiveAd[];
@@ -33,11 +28,5 @@ export async function AdSlot({ placement, category, page, className }: AdSlotPro
 
   if (!ads.length) return null;
 
-  return (
-    <AdSlotClient
-      ads={ads}
-      placement={placement}
-      className={className}
-    />
-  );
+  return <AdSlotClient ads={ads} placement={placement} className={className} />;
 }

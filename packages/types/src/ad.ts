@@ -50,7 +50,22 @@ export interface ActiveAd {
   clickUrl: string;
   popupDelaySec: number;
   popupHomepageOnly: boolean;
+  isHouseAd: boolean;
   advertiser: AdAdvertiser;
+}
+
+/** Public campaign report returned via share token */
+export interface PublicAdReport {
+  title: string;
+  placement: AdPlacement;
+  advertiserName: string;
+  campaignName: string | null;
+  startDate: string;
+  endDate: string;
+  status: AdStatus;
+  daily: { date: string; impressions: number; clicks: number }[];
+  totals: { impressions: number; clicks: number };
+  ctr: number;
 }
 
 /** Full ad shape used in admin panel */

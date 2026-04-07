@@ -104,6 +104,14 @@ export class AdminAdsController {
     await this.adsService.deleteAd(id);
   }
 
+  // ─── Report token ─────────────────────────────────────────────────────────────
+
+  @Post(':id/report-token')
+  @ApiOperation({ summary: 'Generate (or regenerate) a shareable read-only report link token' })
+  async generateReportToken(@Param('id') id: string) {
+    return { data: await this.adsService.generateReportToken(id) };
+  }
+
   // ─── Cache flush (dev/admin use) ─────────────────────────────────────────────
 
   @Post('flush-cache')

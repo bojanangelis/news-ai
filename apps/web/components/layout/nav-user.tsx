@@ -21,6 +21,12 @@ export function NavUser({ user }: Props) {
     return (
       <div className="flex items-center gap-3 shrink-0">
         <Link
+          href="/premium"
+          className="hidden sm:inline text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors"
+        >
+          Premium
+        </Link>
+        <Link
           href="/login"
           className="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
         >
@@ -50,7 +56,8 @@ export function NavUser({ user }: Props) {
         <div className="absolute right-0 mt-2 w-48 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-lg py-1 z-50">
           <Link href="/for-you" className="block px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">For You</Link>
           <Link href="/saved" className="block px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">Saved</Link>
-          <Link href="/settings" className="block px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">Settings</Link>
+          <Link href="/briefing" className="block px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">Дневен Брифинг</Link>
+          <Link href="/account" className="block px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800">Профил и Претплата</Link>
           <hr className="my-1 border-neutral-100 dark:border-neutral-800" />
           <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-800">
             Sign out

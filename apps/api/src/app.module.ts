@@ -22,6 +22,9 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { StoriesModule } from './modules/stories/stories.module';
 import { AdsModule } from './modules/ads/ads.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { SummaryModule } from './modules/summary/summary.module';
+import { BriefingModule } from './modules/briefing/briefing.module';
 
 @Module({
   imports: [
@@ -61,6 +64,9 @@ import { AdsModule } from './modules/ads/ads.module';
     AdminModule,
     StoriesModule,
     AdsModule,
+    SubscriptionModule,
+    SummaryModule,
+    BriefingModule,
   ],
   controllers: [AppController],
   providers: [

@@ -38,16 +38,20 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { premiumSubscription: true },
+    });
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.email, user.role);
+    const isPremium = this.checkIsPremium(user.premiumSubscription);
+    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.email, user.role, isPremium);
     await this.storeRefreshToken(user.id, refreshToken);
 
-    return { user: this.sanitizeUser(user), accessToken, refreshToken };
+    return { user: { ...this.sanitizeUser(user), isPremium }, accessToken, refreshToken };
   }
 
   async refreshTokens(rawRefreshToken: string) {
@@ -58,7 +62,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: stored.userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: stored.userId },
+      include: { premiumSubscription: true },
+    });
 
     // Banned / deactivated users cannot refresh their session
     if (!user.isActive) {
@@ -75,7 +82,8 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.email, user.role);
+    const isPremium = this.checkIsPremium(user.premiumSubscription);
+    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.email, user.role, isPremium);
     await this.storeRefreshToken(user.id, refreshToken);
 
     return { accessToken, refreshToken };
@@ -109,8 +117,8 @@ export class AuthService {
     };
   }
 
-  private async generateTokens(userId: string, email: string, role: string) {
-    const payload: JwtPayload = { sub: userId, email, role };
+  private async generateTokens(userId: string, email: string, role: string, isPremium = false) {
+    const payload: JwtPayload = { sub: userId, email, role, isPremium };
     const accessToken = this.jwt.sign(payload);
 
     const rawRefreshToken = randomBytes(48).toString('hex');
@@ -130,6 +138,13 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  checkIsPremium(sub: { status: string; trialEndsAt?: Date | null; currentPeriodEnd: Date } | null): boolean {
+    if (!sub) return false;
+    if (sub.status === 'ACTIVE' && sub.currentPeriodEnd > new Date()) return true;
+    if (sub.status === 'TRIALING' && sub.trialEndsAt && sub.trialEndsAt > new Date()) return true;
+    return false;
   }
 
   private sanitizeUser(user: { id: string; email: string; name: string; avatarUrl: string | null; role: string }) {

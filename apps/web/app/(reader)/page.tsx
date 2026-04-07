@@ -50,16 +50,16 @@ export default async function HomePage() {
 
   return (
     <>
-    {/* Daily popup — shown once per day, loaded server-side */}
-    <DailyPopupLoader currentPath="/" />
+      {/* Daily popup — once per calendar day, homepage only */}
+      <DailyPopupLoader currentPath="/" />
 
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-14">
-      {/* Top banner ad — full width, prominent */}
-      <AdSlot placement="TOP_BANNER" page="/" className="mb-4" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-14">
 
-      {hasSections ? (
-        <>
-          {populatedSections.map((section, idx) => {
+        {/* Phase 1 placement 1: top leaderboard banner */}
+        <AdSlot placement="TOP_BANNER" page="/" />
+
+        {hasSections ? (
+          populatedSections.map((section, idx) => {
             const el = (() => {
               switch (section.type) {
                 case "HERO":
@@ -78,61 +78,30 @@ export default async function HomePage() {
             return (
               <div key={section.id}>
                 {el}
-                {/* Weather + air quality widget after the hero section */}
+                {/* Weather widget after hero */}
                 {idx === 0 && <div className="mt-6"><WeatherAirWidget /></div>}
-                {/* Inline feed ad after every even section (2nd, 4th, …) */}
-                {idx % 2 === 1 && (
-                  <AdSlot placement="FEED_INLINE" page="/" className="mt-8" />
-                )}
+                {/* Phase 1 placement 2: mid-feed rectangle after 2nd section */}
+                {idx === 1 && <AdSlot placement="FEED_INLINE" page="/" className="mt-8" />}
               </div>
             );
-          })}
-
-          {/* Mid-page wide banner — second TOP_BANNER for extra visibility */}
-          <AdSlot placement="TOP_BANNER" page="/" className="my-4" />
-
-          {/* Bottom section: latest articles alongside a sidebar ad */}
-          {latestArticles.length > 0 && (
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold tracking-tight mb-6">Најнови вести</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {latestArticles.slice(0, 6).map((article) => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
+          })
+        ) : (
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight mb-6">Најнови вести</h2>
+            {latestArticles.length === 0 ? (
+              <p className="text-neutral-500 text-sm">
+                Сè уште нема објавени написи. Додадете извор за стружење и притиснете „Scrape Now".
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {latestArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
               </div>
-              {/* Sidebar ad */}
-              <aside className="hidden lg:block w-[300px] shrink-0">
-                <AdSlot placement="SIDEBAR_RIGHT" page="/" />
-              </aside>
-            </div>
-          )}
-        </>
-      ) : (
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight mb-6">Најнови вести</h2>
-          {latestArticles.length === 0 ? (
-            <p className="text-neutral-500 text-sm">
-              Сè уште нема објавени написи. Додадете извор за стружење и притиснете „Scrape Now".
-            </p>
-          ) : (
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="flex-1 min-w-0">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {latestArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-              </div>
-              <aside className="hidden lg:block w-[300px] shrink-0">
-                <AdSlot placement="SIDEBAR_RIGHT" page="/" />
-              </aside>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 }

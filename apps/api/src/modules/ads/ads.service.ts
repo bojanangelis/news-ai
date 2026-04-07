@@ -20,6 +20,7 @@ import {
   AdStatsQueryDto,
 } from './dto/ads.dto';
 import * as crypto from 'crypto';
+import { Request } from 'express';
 
 @Injectable()
 export class AdsService {
@@ -169,12 +170,13 @@ export class AdsService {
         endDate: end,
         totalDays: dto.totalDays,
         popupDelaySec: dto.popupDelaySec ?? 0,
-        popupHomepageOnly: dto.popupHomepageOnly ?? false,
+        popupHomepageOnly: dto.popupHomepageOnly ?? true, // Phase 1 default: homepage only
         priority: dto.priority ?? 5,
         weight: dto.weight ?? 100,
         maxImpressionsPerDay: dto.maxImpressionsPerDay,
         maxTotalImpressions: dto.maxTotalImpressions,
         maxClicks: dto.maxClicks,
+        isHouseAd: dto.isHouseAd ?? false,
         status: 'PENDING',
       },
       include: {
@@ -184,7 +186,7 @@ export class AdsService {
   }
 
   async updateAd(id: string, dto: UpdateAdDto) {
-    await this.getAd(id); // ensures it exists
+    await this.getAd(id);
     await this.invalidateAdCache();
 
     return this.prisma.ad.update({
@@ -228,14 +230,60 @@ export class AdsService {
     return this.prisma.ad.delete({ where: { id } });
   }
 
-  // ─── Public: fetch active ads by placement ───────────────────────────────────
+  // ─── Report token (share with advertiser) ────────────────────────────────────
+
+  async generateReportToken(id: string) {
+    await this.getAd(id);
+    const token = crypto.randomBytes(20).toString('hex');
+    return this.prisma.ad.update({
+      where: { id },
+      data: { reportToken: token },
+      select: { id: true, reportToken: true },
+    });
+  }
+
+  async getPublicReport(token: string) {
+    const ad = await this.prisma.ad.findUnique({
+      where: { reportToken: token },
+      include: {
+        advertiser: { select: { name: true, website: true } },
+        campaign: { select: { name: true } },
+        dailyStats: { orderBy: { date: 'asc' }, take: 30 },
+      },
+    });
+    if (!ad) throw new NotFoundException('Report not found');
+
+    const totals = ad.dailyStats.reduce(
+      (acc, s) => ({
+        impressions: acc.impressions + s.impressions,
+        clicks: acc.clicks + s.clicks,
+      }),
+      { impressions: 0, clicks: 0 },
+    );
+
+    return {
+      title: ad.title,
+      placement: ad.placement,
+      advertiserName: ad.advertiser.name,
+      campaignName: ad.campaign?.name ?? null,
+      startDate: ad.startDate,
+      endDate: ad.endDate,
+      status: ad.status,
+      daily: ad.dailyStats,
+      totals,
+      ctr:
+        totals.impressions > 0
+          ? +((totals.clicks / totals.impressions) * 100).toFixed(2)
+          : 0,
+    };
+  }
+
+  // ─── Public: fetch active ads by placement ────────────────────────────────────
 
   async getActiveAds(query: ActiveAdsQueryDto) {
     const { placement, device, category, page: pagePath } = query;
     const now = new Date();
 
-    // Cache key covers placement + device only — stable per request type.
-    // Category/page/limit filters are applied after cache since they vary per request.
     const cacheKey = `ads:active:${placement}:${device ?? 'ALL'}`;
 
     const candidates = await this.redis.getOrSet(
@@ -246,6 +294,7 @@ export class AdsService {
             placement: placement as any,
             status: 'APPROVED',
             isEnabled: true,
+            isHouseAd: false, // paid ads only in primary query
             startDate: { lte: now },
             endDate: { gte: now },
           },
@@ -255,62 +304,116 @@ export class AdsService {
           },
         });
 
-        // Device filter is stable per cache key — safe to cache
         return ads.filter((ad) => {
           if (ad.deviceTarget === 'ALL') return true;
           if (device && ad.deviceTarget === device) return true;
           return !device;
         });
       },
-      30, // 30 second TTL
+      30,
     );
 
-    // Apply per-request filters outside the cache
     const filtered = (candidates as typeof candidates).filter((ad) => {
-      // Category targeting: empty = show everywhere
-      if (ad.categoryTargets.length && !(category && ad.categoryTargets.includes(category))) {
-        return false;
-      }
-      // Page targeting: empty = show everywhere
-      if (ad.pageTargets.length && !(pagePath && ad.pageTargets.some((p) => pagePath.startsWith(p)))) {
-        return false;
-      }
-      // Global impression/click caps
+      if (ad.categoryTargets.length && !(category && ad.categoryTargets.includes(category))) return false;
+      if (ad.pageTargets.length && !(pagePath && ad.pageTargets.some((p) => pagePath.startsWith(p)))) return false;
       if (ad.maxTotalImpressions && ad.totalImpressions >= ad.maxTotalImpressions) return false;
       if (ad.maxClicks && ad.totalClicks >= ad.maxClicks) return false;
       return true;
     });
 
+    // ── House ad fallback: when no paid ads are available ────────────────────
+    if (filtered.length === 0) {
+      const houseAds = await this.prisma.ad.findMany({
+        where: {
+          placement: placement as any,
+          isHouseAd: true,
+          isEnabled: true,
+        },
+        include: { advertiser: { select: { id: true, name: true } } },
+      });
+      return this.weightedSort(houseAds);
+    }
+
     return this.weightedSort(filtered);
   }
 
-  // ─── Event tracking ──────────────────────────────────────────────────────────
+  // ─── Server-side click redirect ───────────────────────────────────────────────
+
+  async recordClickAndGetUrl(adId: string, req: Request): Promise<string> {
+    const ad = await this.prisma.ad.findUnique({ where: { id: adId } });
+
+    // Silently redirect to home if ad is invalid — never expose errors in redirect flow
+    if (!ad || (!ad.isHouseAd && (ad.status !== 'APPROVED' || !ad.isEnabled))) {
+      return '/';
+    }
+
+    const ip = req.ip ?? (req.socket?.remoteAddress as string | undefined);
+    const ipHash = ip
+      ? crypto.createHash('sha256').update(ip).digest('hex')
+      : undefined;
+    const today = this.todayDate();
+
+    // Fire-and-forget — don't block the redirect on DB writes
+    Promise.all([
+      this.prisma.adEvent.create({
+        data: {
+          adId,
+          type: 'CLICK',
+          ipHash,
+          userAgent: req.headers['user-agent'],
+          referer: req.headers['referer'] as string | undefined,
+        },
+      }),
+      this.prisma.adDailyStat.upsert({
+        where: { adId_date: { adId, date: today } },
+        create: { adId, date: today, impressions: 0, clicks: 1 },
+        update: { clicks: { increment: 1 } },
+      }),
+      this.prisma.ad.update({
+        where: { id: adId },
+        data: { totalClicks: { increment: 1 } },
+      }),
+    ]).catch(() => null);
+
+    return this.buildDestinationUrl(ad);
+  }
+
+  // ─── Event tracking (impressions only — clicks now via redirect) ──────────────
 
   async recordEvent(adId: string, dto: RecordAdEventDto, ipAddress?: string) {
     const ad = await this.prisma.ad.findUnique({ where: { id: adId } });
     if (!ad || ad.status !== 'APPROVED' || !ad.isEnabled) return;
 
+    const eventType = dto.type as AdEventType;
+
+    // ── Impression deduplication via Redis ────────────────────────────────────
+    // One impression per session per ad per calendar day (IAB best practice)
+    if (eventType === 'IMPRESSION' && dto.sessionId) {
+      const dateStr = new Date().toISOString().split('T')[0];
+      const dedupKey = `imp:${adId}:${dto.sessionId}:${dateStr}`;
+      const already = await this.redis.get(dedupKey).catch(() => null);
+      if (already) return; // already counted today
+      // Mark as counted; TTL 25 hours to cover timezone edge cases
+      await this.redis.set(dedupKey, '1', 90000).catch(() => null);
+    }
+
     const ipHash = ipAddress
       ? crypto.createHash('sha256').update(ipAddress).digest('hex')
       : undefined;
 
-    const eventType = dto.type as AdEventType;
     const today = this.todayDate();
 
     await Promise.all([
-      // Insert individual event
       this.prisma.adEvent.create({
         data: {
           adId,
           type: eventType,
           sessionId: dto.sessionId,
           ipHash,
-          userAgent: undefined,
           deviceType: dto.deviceType,
           referer: dto.referer,
         },
       }),
-      // Upsert daily stat row
       this.prisma.adDailyStat.upsert({
         where: { adId_date: { adId, date: today } },
         create: {
@@ -320,21 +423,17 @@ export class AdsService {
           clicks: eventType === 'CLICK' ? 1 : 0,
         },
         update: {
-          impressions:
-            eventType === 'IMPRESSION' ? { increment: 1 } : undefined,
+          impressions: eventType === 'IMPRESSION' ? { increment: 1 } : undefined,
           clicks: eventType === 'CLICK' ? { increment: 1 } : undefined,
         },
       }),
-      // Update denormalized counters on Ad
       this.prisma.ad.update({
         where: { id: adId },
         data: {
-          totalImpressions:
-            eventType === 'IMPRESSION' ? { increment: 1 } : undefined,
+          totalImpressions: eventType === 'IMPRESSION' ? { increment: 1 } : undefined,
           totalClicks: eventType === 'CLICK' ? { increment: 1 } : undefined,
         },
       }),
-      // Fire tracking pixel URL if set (fire-and-forget)
       ad.trackingUrl && eventType === 'IMPRESSION'
         ? fetch(ad.trackingUrl, { method: 'GET' }).catch(() => null)
         : Promise.resolve(),
@@ -383,22 +482,23 @@ export class AdsService {
 
     const [totalAds, activeAds, pendingAds, todayStats, topAds] =
       await Promise.all([
-        this.prisma.ad.count(),
+        this.prisma.ad.count({ where: { isHouseAd: false } }),
         this.prisma.ad.count({
           where: {
             status: 'APPROVED',
             isEnabled: true,
+            isHouseAd: false,
             startDate: { lte: now },
             endDate: { gte: now },
           },
         }),
-        this.prisma.ad.count({ where: { status: 'PENDING' } }),
+        this.prisma.ad.count({ where: { status: 'PENDING', isHouseAd: false } }),
         this.prisma.adDailyStat.aggregate({
           where: { date: today },
           _sum: { impressions: true, clicks: true },
         }),
         this.prisma.ad.findMany({
-          where: { status: 'APPROVED' },
+          where: { status: 'APPROVED', isHouseAd: false },
           orderBy: { totalImpressions: 'desc' },
           take: 5,
           include: { advertiser: { select: { name: true } } },
@@ -420,7 +520,7 @@ export class AdsService {
             ? +((todayClicks / todayImpressions) * 100).toFixed(2)
             : 0,
       },
-      topAds: topAds?.map((ad) => ({
+      topAds: topAds.map((ad) => ({
         id: ad.id,
         title: ad.title,
         advertiserName: ad.advertiser.name,
@@ -445,6 +545,7 @@ export class AdsService {
     const result = await this.prisma.ad.updateMany({
       where: {
         status: 'APPROVED',
+        isHouseAd: false,
         endDate: { lt: now },
       },
       data: { status: 'EXPIRED' },
@@ -458,9 +559,7 @@ export class AdsService {
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
   private async requireAdvertiser(id: string) {
-    const advertiser = await this.prisma.advertiser.findUnique({
-      where: { id },
-    });
+    const advertiser = await this.prisma.advertiser.findUnique({ where: { id } });
     if (!advertiser) throw new NotFoundException('Advertiser not found');
     return advertiser;
   }
@@ -475,15 +574,22 @@ export class AdsService {
     return d;
   }
 
-  private weightedSort<T extends { weight: number; priority: number }>(
-    ads: T[],
-  ): T[] {
-    if (ads.length <= 1) return ads;
+  private buildDestinationUrl(ad: { destinationUrl: string; utmSource?: string | null; utmMedium?: string | null; utmCampaign?: string | null }): string {
+    try {
+      const url = new URL(ad.destinationUrl);
+      if (ad.utmSource) url.searchParams.set('utm_source', ad.utmSource);
+      if (ad.utmMedium) url.searchParams.set('utm_medium', ad.utmMedium);
+      if (ad.utmCampaign) url.searchParams.set('utm_campaign', ad.utmCampaign);
+      return url.toString();
+    } catch {
+      return ad.destinationUrl;
+    }
+  }
 
-    // Sort by priority desc, then shuffle within same-priority groups using weight
+  private weightedSort<T extends { weight: number; priority: number }>(ads: T[]): T[] {
+    if (ads.length <= 1) return ads;
     return [...ads].sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
-      // Within same priority, use weighted random
       return Math.random() * b.weight - Math.random() * a.weight;
     });
   }

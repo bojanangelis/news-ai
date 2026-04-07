@@ -122,6 +122,79 @@ export function getActiveAds(params: {
   });
 }
 
+// ─── Subscription ─────────────────────────────────────────────────────────────
+
+export function getSubscriptionPricing() {
+  return apiFetch<{
+    data: {
+      monthly: { price: number; currency: string; label: string };
+      yearly: {
+        price: number;
+        currency: string;
+        label: string;
+        perDay: number;
+        savingsVsMonthly: number;
+        freeMonthsEquivalent: number;
+      };
+      trialDays: number;
+    };
+  }>("/subscription/pricing", { revalidate: 3600 });
+}
+
+export function getSubscriptionStatus(token: string) {
+  return apiFetch<{
+    data: {
+      isPremium: boolean;
+      status: string | null;
+      plan: string | null;
+      expiresAt: string | null;
+      trialEndsAt: string | null;
+      daysLeft: number | null;
+      trialDaysLeft: number | null;
+      cancelledAt: string | null;
+    };
+  }>("/subscription/status", {
+    revalidate: 0,
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// ─── Summary ──────────────────────────────────────────────────────────────────
+
+export function getArticleSummary(articleId: string, sessionId?: string) {
+  const qs = sessionId ? `?sessionId=${sessionId}` : "";
+  return apiFetch<{
+    data: {
+      id: string;
+      bullets: string[];
+      sources: string[];
+      audioUrl: string | null;
+      generatedAt: string;
+    } | null;
+    meta: { isPremium: boolean; remaining: number | null };
+  }>(`/articles/${articleId}/summary${qs}`, { revalidate: 0 });
+}
+
+// ─── Briefing ─────────────────────────────────────────────────────────────────
+
+export function getDailyBriefing() {
+  return apiFetch<{
+    data: {
+      date: string;
+      generatedAt: string;
+      articles: {
+        id: string;
+        title: string;
+        slug: string;
+        excerpt: string | null;
+        coverImageUrl: string | null;
+        publishedAt: string;
+        category: { name: string; slug: string };
+      }[];
+    } | null;
+  }>("/briefing/today", { revalidate: 300 });
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 export function searchArticles(params: {

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ArticleBody } from "@/components/article/article-body";
 import { ArticleMeta } from "@/components/article/article-meta";
 import { ArticleActions } from "@/components/article/article-actions";
 import { RelatedArticles } from "@/components/article/related-articles";
 import { PremiumGate } from "@/components/article/premium-gate";
+import { ArticleSummary } from "@/components/article/article-summary";
+import { ArticleViewTracker } from "@/components/article/article-view-tracker";
+import { ArticleSourceRedirect } from "@/components/article/article-source-redirect";
 import { getArticle } from "@/lib/api";
 import { AdSlot } from "@/components/ads";
 import type { ArticleDetail } from "@repo/types";
@@ -50,9 +53,11 @@ export default async function ArticlePage({ params }: Props) {
     notFound();
   }
 
-  // Scraped articles: redirect to original source instead of showing content here
+  // Scraped articles: track the view first, then redirect client-side
   const sourceUrl = (article as unknown as { sourceUrl?: string }).sourceUrl;
-  if (sourceUrl) redirect(sourceUrl);
+  if (sourceUrl) {
+    return <ArticleSourceRedirect articleId={article.id} sourceUrl={sourceUrl} />;
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -71,6 +76,9 @@ export default async function ArticlePage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {/* View tracking for non-scraped articles */}
+      <ArticleViewTracker articleId={article.id} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
         <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-12">
@@ -106,6 +114,9 @@ export default async function ArticlePage({ params }: Props) {
                 />
               </div>
             )}
+
+            {/* AI Summary panel */}
+            <ArticleSummary articleId={article.id} />
 
             {/* Article body — premium gate wraps the bottom portion */}
             {article.isPremium ? (

@@ -4,6 +4,7 @@ export interface SessionUser {
   sub: string;
   email: string;
   role: string;
+  isPremium: boolean;
   iat: number;
   exp: number;
 }

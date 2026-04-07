@@ -27,7 +27,7 @@ export function PremiumGate({ children }: Props) {
             href="/premium"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-accent px-8 text-sm font-semibold text-white hover:bg-accent/90 transition-colors w-full"
           >
-            Subscribe — from $9.99/month
+            Претплати се — од 199 МКД/месец
           </Link>
           <p className="mt-3 text-xs text-neutral-400">Already a subscriber? <Link href="/login" className="underline">Sign in</Link></p>
         </div>
