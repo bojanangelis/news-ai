@@ -1,0 +1,3 @@
+{"type":"server-started","port":58218,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:58218","screen_dir":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/62789-1776281515/content","state_dir":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/62789-1776281515/state"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/62789-1776281515/content/premium-recommendation.html"}
+{"type":"server-stopped","reason":"idle timeout"}

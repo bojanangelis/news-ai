@@ -175,6 +175,24 @@ export function getArticleSummary(articleId: string, sessionId?: string) {
   }>(`/articles/${articleId}/summary${qs}`, { revalidate: 0 });
 }
 
+// ─── Intelligence ─────────────────────────────────────────────────────────────
+
+export function getArticleIntelligence(articleId: string, token?: string) {
+  return apiFetch<{
+    data: {
+      deepAnalysis: string;
+      whyItMatters: string | null;
+      keyPlayers: { name: string; role: string; context: string }[] | null;
+      timeline: { date: string; event: string }[] | null;
+      biasCheck: { reliability: string; slant: string; missingContext: string[] } | null;
+    };
+    meta: { isPremium: boolean };
+  }>(`/articles/${articleId}/intelligence`, {
+    revalidate: 0,
+    ...(token && { headers: { Authorization: `Bearer ${token}` } }),
+  });
+}
+
 // ─── Briefing ─────────────────────────────────────────────────────────────────
 
 export function getDailyBriefing() {

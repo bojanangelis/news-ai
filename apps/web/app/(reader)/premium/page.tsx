@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSubscriptionPricing } from "@/lib/api";
+import { getSessionFromCookies } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Premium — NewsPlus",
   description: "Претплати се на NewsPlus Premium и добиј неограничен пристап до вести.",
 };
 
-export const revalidate = 3600;
-
 export default async function PremiumPage() {
+  const session = await getSessionFromCookies();
+  if (session?.isPremium) redirect("/account");
   const fallback = {
     monthly: { price: 199, currency: "MKD", label: "199 МКД / месец" },
     yearly: {

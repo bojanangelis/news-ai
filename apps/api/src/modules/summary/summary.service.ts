@@ -81,7 +81,7 @@ export class SummaryService {
 
     const response = await this.groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
-      max_tokens: 512,
+      max_tokens: 1024,
       messages: [
         {
           role: 'user',
@@ -124,8 +124,8 @@ ${articleText}`,
 
     const summary = await this.prisma.articleSummary.upsert({
       where: { articleId },
-      create: { articleId, bullets, sources },
-      update: { bullets, sources, generatedAt: new Date() },
+      create: { articleId, bullets, sources, aiModel: 'llama-3.1-8b-instant' },
+      update: { bullets, sources, aiModel: 'llama-3.1-8b-instant', generatedAt: new Date() },
     });
 
     return summary;

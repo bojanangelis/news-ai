@@ -6,11 +6,12 @@ import { ArticleMeta } from "@/components/article/article-meta";
 import { ArticleActions } from "@/components/article/article-actions";
 import { RelatedArticles } from "@/components/article/related-articles";
 import { PremiumGate } from "@/components/article/premium-gate";
-import { ArticleSummary } from "@/components/article/article-summary";
+import { ArticleIntelligencePanel } from "@/components/article/article-intelligence-panel";
 import { ArticleViewTracker } from "@/components/article/article-view-tracker";
 import { ArticleSourceRedirect } from "@/components/article/article-source-redirect";
 import { getArticle } from "@/lib/api";
 import { AdSlot } from "@/components/ads";
+import { getSessionFromCookies } from "@/lib/auth";
 import type { ArticleDetail } from "@repo/types";
 
 interface Props {
@@ -44,6 +45,9 @@ export const revalidate = 300;
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
+
+  const session = await getSessionFromCookies();
+  const isPremium = session?.isPremium ?? false;
 
   let article: ArticleDetail;
   try {
@@ -81,7 +85,7 @@ export default async function ArticlePage({ params }: Props) {
       <ArticleViewTracker articleId={article.id} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-        <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-12">
+        <div className={isPremium && !article.relatedArticles.length ? "" : "lg:grid lg:grid-cols-[1fr_300px] lg:gap-12"}>
           <article className="min-w-0">
             {/* Category + title */}
             <div className="mb-8">
@@ -115,8 +119,8 @@ export default async function ArticlePage({ params }: Props) {
               </div>
             )}
 
-            {/* AI Summary panel */}
-            <ArticleSummary articleId={article.id} />
+            {/* AI Intelligence Panel */}
+            <ArticleIntelligencePanel articleId={article.id} />
 
             {/* Article body — premium gate wraps the bottom portion */}
             {article.isPremium ? (
@@ -127,8 +131,10 @@ export default async function ArticlePage({ params }: Props) {
               <ArticleBody sections={article.sections} />
             )}
 
-            {/* Mid-article ad */}
-            <AdSlot placement="ARTICLE_INLINE" category={article.category.slug} className="my-8" />
+            {/* Mid-article ad — hidden for premium */}
+            {!isPremium && (
+              <AdSlot placement="ARTICLE_INLINE" category={article.category.slug} className="my-8" />
+            )}
 
             {/* Author card — below body content */}
             <ArticleMeta article={article} />
@@ -156,27 +162,31 @@ export default async function ArticlePage({ params }: Props) {
             })()}
           </article>
 
-          {/* Sidebar — visible on large screens */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-6 space-y-6">
-              {/* Sidebar ad */}
-              <AdSlot placement="SIDEBAR_RIGHT" category={article.category.slug} />
+          {/* Sidebar — visible on large screens; hidden for premium when empty */}
+          {(!isPremium || article.relatedArticles.length > 0) && (
+            <aside className="hidden lg:block">
+              <div className="sticky top-6 space-y-6">
+                {/* Sidebar ad — hidden for premium */}
+                {!isPremium && (
+                  <AdSlot placement="SIDEBAR_RIGHT" category={article.category.slug} />
+                )}
 
-              {article.relatedArticles.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4">Related</h3>
-                  <div className="space-y-4">
-                    {article.relatedArticles.slice(0, 4).map((r) => (
-                      <a key={r.id} href={`/article/${r.slug}`} className="block group">
-                        <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 group-hover:text-accent transition-colors leading-snug line-clamp-3">{r.title}</p>
-                        <p className="text-xs text-neutral-400 mt-1">{r.category?.name}</p>
-                      </a>
-                    ))}
+                {article.relatedArticles.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4">Related</h3>
+                    <div className="space-y-4">
+                      {article.relatedArticles.slice(0, 4).map((r) => (
+                        <a key={r.id} href={`/article/${r.slug}`} className="block group">
+                          <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 group-hover:text-accent transition-colors leading-snug line-clamp-3">{r.title}</p>
+                          <p className="text-xs text-neutral-400 mt-1">{r.category?.name}</p>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </aside>
+                )}
+              </div>
+            </aside>
+          )}
         </div>
 
         {/* Related articles on mobile */}

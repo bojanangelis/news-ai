@@ -1,5 +1,6 @@
 import type { ActiveAd } from "@repo/types";
 import { getActiveAds } from "@/lib/api";
+import { getSessionFromCookies } from "@/lib/auth";
 import { StickyBottomAd } from "./sticky-bottom-ad";
 
 /**
@@ -7,6 +8,10 @@ import { StickyBottomAd } from "./sticky-bottom-ad";
  * Place once in the layout so it appears on all reader pages.
  */
 export async function StickyBottomLoader() {
+  // Premium users see no ads
+  const session = await getSessionFromCookies();
+  if (session?.isPremium) return null;
+
   let ads: ActiveAd[] = [];
 
   try {

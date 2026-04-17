@@ -25,6 +25,7 @@ import { AdsModule } from './modules/ads/ads.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { SummaryModule } from './modules/summary/summary.module';
 import { BriefingModule } from './modules/briefing/briefing.module';
+import { IntelligenceModule } from './modules/intelligence/intelligence.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { BriefingModule } from './modules/briefing/briefing.module';
     SubscriptionModule,
     SummaryModule,
     BriefingModule,
+    IntelligenceModule,
   ],
   controllers: [AppController],
   providers: [

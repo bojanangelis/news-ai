@@ -1,5 +1,6 @@
 import type { ActiveAd } from "@repo/types";
 import { getActiveAds } from "@/lib/api";
+import { getSessionFromCookies } from "@/lib/auth";
 import { AdRenderer } from "./ad-renderer";
 
 /**
@@ -7,6 +8,9 @@ import { AdRenderer } from "./ad-renderer";
  * Looks like a news card but is clearly labeled "Спонзорирано".
  */
 export async function SponsoredCard({ category }: { category?: string }) {
+  const session = await getSessionFromCookies();
+  if (session?.isPremium) return null;
+
   let ad: ActiveAd | null = null;
 
   try {

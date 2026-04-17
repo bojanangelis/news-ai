@@ -1,0 +1,80 @@
+<h2>Register Page Design</h2>
+<p class="subtitle">Sits inside the existing auth layout (centered card, max-w-md). Matches the login page style exactly.</p>
+
+<div class="mockup" style="max-width:460px;margin:0 auto;">
+  <div class="mockup-header">http://localhost:3000/register</div>
+  <div class="mockup-body" style="background:#f5f5f7;display:flex;align-items:center;justify-content:center;padding:32px 16px;min-height:560px;">
+    <div style="width:100%;max-width:400px;background:white;border-radius:20px;border:1px solid #e5e5e5;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:28px;">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-0.5px;">
+          <span style="color:#e63946;">News</span><span style="color:#111;">Plus</span>
+        </span>
+      </div>
+
+      <!-- Heading -->
+      <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:#111;">Create your account</h1>
+      <p style="font-size:13px;color:#737373;margin:0 0 24px;">Join NewsPlus — free forever, premium when you're ready.</p>
+
+      <!-- Full name -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#111;">Full name</label>
+        <input style="width:100%;border:1px solid #e5e5e5;border-radius:12px;padding:10px 14px;font-size:13px;color:#555;box-sizing:border-box;background:#fafafa;" placeholder="Jane Doe" disabled />
+      </div>
+
+      <!-- Email -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#111;">Email</label>
+        <input style="width:100%;border:1px solid #e5e5e5;border-radius:12px;padding:10px 14px;font-size:13px;color:#555;box-sizing:border-box;background:#fafafa;" placeholder="you@example.com" disabled />
+      </div>
+
+      <!-- Password -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#111;">Password</label>
+        <input style="width:100%;border:1px solid #e5e5e5;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;background:#fafafa;" placeholder="Min. 8 characters" disabled />
+        <!-- Strength bar -->
+        <div style="margin-top:6px;height:3px;border-radius:2px;background:#e5e5e5;overflow:hidden;">
+          <div style="width:60%;height:100%;background:#f59e0b;border-radius:2px;"></div>
+        </div>
+        <p style="margin:4px 0 0;font-size:11px;color:#f59e0b;">Medium strength</p>
+      </div>
+
+      <!-- Confirm password -->
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#111;">Confirm password</label>
+        <input style="width:100%;border:1px solid #22c55e;border-radius:12px;padding:10px 14px;font-size:13px;box-sizing:border-box;background:#f0fdf4;" placeholder="••••••••" disabled />
+        <p style="margin:4px 0 0;font-size:11px;color:#22c55e;">✓ Passwords match</p>
+      </div>
+
+      <!-- Submit -->
+      <button style="width:100%;height:44px;border-radius:12px;background:#e63946;color:white;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-bottom:12px;">
+        Create account →
+      </button>
+
+      <!-- Legal -->
+      <p style="font-size:11px;color:#a3a3a3;text-align:center;margin:0 0 16px;">
+        By creating an account you agree to our <u>Terms</u> and <u>Privacy Policy</u>.
+      </p>
+
+      <!-- Login link -->
+      <p style="font-size:13px;color:#737373;text-align:center;margin:0;">
+        Already have an account? <a href="#" style="color:#e63946;font-weight:500;text-decoration:none;">Sign in</a>
+      </p>
+
+    </div>
+  </div>
+</div>
+
+<div class="section" style="max-width:460px;margin:24px auto 0;">
+  <h3>What's new vs the current RegisterForm</h3>
+  <ul style="font-size:14px;color:#555;line-height:1.8;">
+    <li>✅ <strong>Confirm password field</strong> with real-time match check</li>
+    <li>✅ <strong>Password strength bar</strong> (weak / medium / strong)</li>
+    <li>✅ <strong>Client-side validation</strong> before any API call</li>
+    <li>✅ <strong>Better heading copy</strong> — more inviting, less generic</li>
+    <li>✅ <strong>Loading spinner + disabled state</strong> on submit</li>
+    <li>✅ Redirects to <code>/onboarding</code> on success (already wired in RegisterForm)</li>
+  </ul>
+  <p style="font-size:13px;color:#a3a3a3;">Does this look right? Reply in the terminal.</p>
+</div>

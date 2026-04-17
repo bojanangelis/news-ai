@@ -284,6 +284,7 @@ model Article {
   storyArticles    StoryArticle[]
   articleEntities  ArticleEntity[]
   aiSummary        ArticleSummary?
+  aiIntelligence   ArticleIntelligence?
 
   @@index([slug])
   @@index([status, publishedAt(sort: Desc)])
@@ -435,7 +436,7 @@ model ArticleSummary {
   bullets     String[] // 5 key points in Macedonian
   sources     String[] // names of outlets mentioned in the article
   audioUrl    String?  // S3/MinIO URL for pre-generated TTS audio
-  aiModel     String   @default("claude-haiku-4-5")
+  aiModel     String   @default("llama-3.1-8b-instant")
   generatedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -448,9 +449,28 @@ model DailyBriefing {
   id          String   @id @default(cuid())
   date        DateTime @unique @db.Date
   articleIds  String[] // ordered list of top article IDs for the day
+  narrative   String?  // AI-generated editorial summary of the day's stories
   generatedAt DateTime @default(now())
 
   @@index([date(sort: Desc)])
+}
+
+// ─── ArticleIntelligence (premium AI deep analysis per article) ───────────────
+
+model ArticleIntelligence {
+  id           String   @id @default(cuid())
+  articleId    String   @unique
+  article      Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  deepAnalysis String   // 3-paragraph analysis in Macedonian
+  whyItMatters String   // 2-3 sentences on Macedonia-specific relevance
+  keyPlayers   Json     // { name: string, role: string, context: string }[]
+  timeline     Json     // { date: string, event: string }[]
+  biasCheck    Json     // { reliability: string, slant: string, missingContext: string[] }
+  aiModel      String   @default("claude-haiku-4-5-20251001")
+  generatedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([articleId])
 }
 
 // ─── Notification ─────────────────────────────────────────────────────────────

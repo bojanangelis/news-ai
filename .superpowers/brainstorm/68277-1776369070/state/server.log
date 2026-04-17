@@ -1,0 +1,7 @@
+{"type":"server-started","port":60367,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:60367","screen_dir":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content","state_dir":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/state"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content/register.html"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content/onboarding.html"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content/settings.html"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content/settings-v2.html"}
+{"type":"screen-added","file":"/Users/meta5team/Documents/news-plus/.superpowers/brainstorm/68277-1776369070/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}
